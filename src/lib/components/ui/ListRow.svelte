@@ -285,22 +285,32 @@
 	}
 
 	/*
-	 * Aikaero+PB-rivi: OLETUKSENA (vain toinen läsnä, esim. voittajalla
-	 * ei ole aikaeroa, tai sarjataulukon pelkät pisteet) yksittäinen arvo
-	 * tasataan OIKEAAN reunaan `flex-end`:illä. VASTA kun MOLEMMAT
-	 * aikaero JA PB ovat läsnä JA sisällöllisiä (`:not(:empty)`) —
-	 * `space-between` erottaa ne vastakkaisiin reunoihin (aikaero
-	 * vasemmalle, PB oikealle). HUOM: pelkkä `:has(metaSecondary)` ei
-	 * riittäisi, koska Svelten snippet-propsit ovat TOTUUSARVOLTAAN aina
-	 * totta vaikka niiden SISÄLTÖ olisi tyhjä (esim. voittajan
-	 * `gapDisplay` on `undefined` mutta `meta`-snippet on silti annettu)
-	 * — siksi tarkistetaan sisällön tyhjyys `:not(:empty)`:llä, ei
-	 * pelkkää elementin olemassaoloa.
+	 * Aikaero/pisteet+PB-rivi: `meta` on AINA vasemmassa reunassa ja
+	 * `metaSecondary` AINA oikeassa reunassa — KIINTEÄT "sarakkeet"
+	 * riippumatta siitä onko jompikumpi tyhjä.
+	 *
+	 * BUGIKORJAUS 22.9.2026 (käyttäjän raportoima: DriverRaceRow'ssa
+	 * "60 pistettä" hyppäsi oikeaan reunaan aina kun kyseisellä rivillä
+	 * ei ollut `gapDisplay`:tä, esim. kisan voittanut kuljettaja). AIEMPI
+	 * logiikka piilotti tyhjän `meta`/`metaSecondary`-spanin kokonaan
+	 * (`display: none`), jolloin riville jäi vain YKSI flex-lapsi — ja
+	 * `justify-content: flex-end` (aiempi oletus) tasasi SEN JÄLJELLÄ
+	 * OLEVAN ainoan arvon aina OIKEAAN reunaan riippumatta siitä kumpi
+	 * propsi (`meta` vai `metaSecondary`) se oli. Se sattui olemaan oikea
+	 * lopputulos RaceResultRow'lle (PB pysyy oikealla kun gapDisplay
+	 * puuttuu) mutta VÄÄRÄ DriverRaceRow'lle (pisteiden PITÄISI pysyä
+	 * vasemmalla kun gapDisplay puuttuu).
+	 *
+	 * KORJAUS: tyhjää spania EI enää piilotytetä (`display: none` poistettu
+	 * alta) — se pysyy DOM:ssa nollaleveänä flex-lapsena, joten riville jää
+	 * AINA kaksi flex-lasta ja `justify-content: space-between` asettaa ne
+	 * johdonmukaisesti samoihin "sarakkeisiin" (meta vasemmalle,
+	 * metaSecondary oikealle) SEKÄ silloin kun molemmat ovat läsnä ETTÄ
+	 * silloin kun vain toinen on — oikea lopputulos KAIKILLE ListRow'n
+	 * käyttäjille (DriverCard, RaceResultRow, DriverRaceRow, tilastot-sivu)
+	 * ilman erillistä tapauskohtaista logiikkaa.
 	 */
 	.list-row__row--secondary {
-		justify-content: flex-end;
-	}
-	.list-row__row--secondary:has(.list-row__meta:not(:empty)):has(.list-row__meta-secondary:not(:empty)) {
 		justify-content: space-between;
 	}
 
@@ -356,14 +366,6 @@
 		white-space: nowrap;
 	}
 
-	/* Jos `meta`-snippet on annettu mutta sen sisältö on tyhjä (esim.
-	   RaceResultRow'n voittajarivi, jolla ei ole gapDisplay-arvoa),
-	   piilotetaan tyhjä <span> kokonaan sen sijaan että se jättäisi
-	   tyhjän tilan näkyviin. */
-	.list-row__meta:empty {
-		display: none;
-	}
-
 	.list-row__meta[data-accent='warning'] {
 		color: var(--color-warning);
 		font-weight: 700;
@@ -385,14 +387,6 @@
 		font-weight: 600;
 		font-variant-numeric: tabular-nums;
 		white-space: nowrap;
-	}
-
-	/* Sama tyhjän piilotus kuin `.list-row__meta:empty`:ssä (ks. yllä) —
-	   RaceResultRow'n metaSecondary-snippet on aina "totta" propsina
-	   vaikka bestLapTime puuttuisi, jolloin span jäisi tyhjäksi ilman
-	   tätä. */
-	.list-row__meta-secondary:empty {
-		display: none;
 	}
 
 	/* 'highlight' = tämän rivin kuljettaja ajoi KOKO KISAN nopeimman

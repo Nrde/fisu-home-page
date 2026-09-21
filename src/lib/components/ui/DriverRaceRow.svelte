@@ -54,12 +54,10 @@
 		{/if}
 	{/snippet}
 	{#snippet nameTrailing()}
-		{#if dnf || podium || pole || positionChange !== undefined}
+		{#if dnf || pole || positionChange !== undefined}
 			<span class="trailing-group">
 				{#if dnf}
 					<span class="dnf-badge">DNF</span>
-				{:else if podium}
-					<span class="accolade-badge">Palkintosija</span>
 				{:else if pole}
 					<span class="accolade-badge">Paalupaikka</span>
 				{/if}
@@ -70,12 +68,16 @@
 					>
 						<!--
 							Käyttäjän palaute 22.9.2026: pelkkä "▲ 6" ei kerro MISTÄ
-							muutos on laskettu — pieni "aika-ajosta"-label selventää
-							että luku on ero lähtöruutuun (positionChange = starting
-							Position - position, ks. mappers.ts:n mapDriverCareerRace)
-							eikä esim. edelliseen kisaan tai sarjataulukkoon.
+							muutos on laskettu — pieni "muutos aika-ajosta"-label
+							selventää että luku on ero lähtöruutuun (positionChange =
+							starting Position - position, ks. mappers.ts:n
+							mapDriverCareerRace) eikä esim. edelliseen kisaan tai
+							sarjataulukkoon. Teksti tarkennettu (22.9.2026, toinen
+							kierros) "aika-ajosta" -> "muutos aika-ajosta" — pelkkä
+							"aika-ajosta" luki helposti niin että LUKU ITSE olisi jokin
+							aika-ajotulos, ei muutos siitä.
 						-->
-						<span class="position-change__label">aika-ajosta</span>
+						<span class="position-change__label">muutos aika-ajosta</span>
 						{#if positionChange > 0}
 							<span class="position-change__icon">▲</span><span>{positionChange}</span>
 						{:else if positionChange < 0}
