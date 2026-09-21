@@ -2,8 +2,6 @@
 	/**
 	 * Etusivu. TILANNE (20.9.2026): KAIKKI NELJÄ osiota saavat datansa
 	 * OIKEASTI +page.server.ts:n load-funktiosta — ks. sen kommentit.
-	 * Esimerkkidataa käytetään VAIN kehitystilassa jos jokin haku
-	 * epäonnistuu (`data.isMockData`).
 	 *
 	 * `data.upcomingRace`/`data.latestRaceResult` voivat olla
 	 * `undefined` (ei aina virhe): esim. uuden kauden alussa ei ole
@@ -157,14 +155,6 @@
 
 <Hero seasonName={data.currentSeason.name} isOngoing={data.currentSeason.isOngoing} />
 
-{#if data.isMockData}
-	<div class="page-grid">
-		<p class="mock-notice">
-			⚠ Kehitystila: API-yhteys epäonnistui, koko sivu näyttää esimerkkidataa.
-		</p>
-	</div>
-{/if}
-
 <section class="page-grid section section--stats">
 	<div class="fluid-grid" data-minsize="220px" data-gap="4">
 		{#each data.communityStats as stat (stat.label)}
@@ -196,7 +186,7 @@
 			label="Tulosten järjestys"
 			bind:value={resultSort}
 			options={[
-				{ value: 'position', label: 'Lopputulos' },
+				{ value: 'position', label: 'Lopputulokset' },
 				{ value: 'lapTime', label: 'Nopein kierros' },
 				{ value: 'positionChange', label: 'Sijoja voitettu/hävitty' }
 			]}
@@ -262,8 +252,14 @@
 	   ja tämä on ensimmäinen osio Heron jälkeen — pienempi yläpadding
 	   tuo statslaatat lähemmäs Hero-otsikkoa sen sijaan että väliin
 	   jäisi sama tila kuin ennen otsikkorivin omaa marginaalia. */
+	/* Käyttäjän pyyntö 22.9.2026 (toinen kierros): statslaatat hieman
+	   lähemmäs seuraavaa osiota ("Viimeisimmät tulokset"/"Tuleva
+	   kilpailu") — pienempi alapadding kuin muilla .section-lohkoilla
+	   (space-12 -> space-6), yläpadding ennallaan (ks. yllä oleva
+	   kommentti sen alkuperäisestä syystä). */
 	.section--stats {
 		padding-top: var(--space-4);
+		padding-bottom: var(--space-6);
 	}
 
 	.section__header {
@@ -315,20 +311,5 @@
 	/* .link-luokan alleviivaus/hover-tyyli tulee global.css:stä */
 	.link {
 		font-size: var(--font-size-sm);
-	}
-
-	/* Näkyy vain kun +page.server.ts joutui turvautumaan esimerkki-
-	   dataan (aina kehitystilassa TÄSSÄ hiekkalaatikossa, koska
-	   api2.simu.fi ei ole tavoitettavissa täältä) — ei koskaan
-	   tuotannossa, ks. +page.server.ts:n kommentit. */
-	.mock-notice {
-		margin-top: var(--space-4);
-		padding: var(--space-2) var(--space-4);
-		border-radius: var(--radius-sm);
-		background: color-mix(in oklch, var(--color-warning) 15%, var(--color-bg));
-		border: 1px solid color-mix(in oklch, var(--color-warning) 40%, transparent);
-		color: var(--color-warning);
-		font-size: var(--font-size-sm);
-		font-weight: 600;
 	}
 </style>

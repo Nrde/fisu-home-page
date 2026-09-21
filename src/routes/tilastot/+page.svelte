@@ -90,10 +90,6 @@
 <section class="page-grid section">
 	<h1 class="section__title">Tilastot</h1>
 
-	{#if data.isMockData}
-		<p class="mock-notice">⚠ Kehitystila: API-yhteys epäonnistui, sivu näyttää esimerkkidataa.</p>
-	{/if}
-
 	<div class="block">
 		<h2 class="block__title">Kuljettajien ennätykset</h2>
 		<SegmentedControl label="Ennätyslista" bind:value={leaderboardKey} options={LEADERBOARD_TABS} />
@@ -335,14 +331,4 @@
 		font-variant-numeric: tabular-nums;
 	}
 
-	.mock-notice {
-		margin-bottom: var(--space-6);
-		padding: var(--space-2) var(--space-4);
-		border-radius: var(--radius-sm);
-		background: color-mix(in oklch, var(--color-warning) 15%, var(--color-bg));
-		border: 1px solid color-mix(in oklch, var(--color-warning) 40%, transparent);
-		color: var(--color-warning);
-		font-size: var(--font-size-sm);
-		font-weight: 600;
-	}
 </style>

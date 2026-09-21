@@ -27,6 +27,9 @@
 
 	let { data }: { data: PageData } = $props();
 
+	// Varateksti VAIN siltä varalta ettei ylläpito ole vielä asettanut
+	// arvoa (`intro: null` API-vastauksessa) — sivu ei saa näyttää
+	// tyhjältä otsikon jälkeen sen takia.
 	const DEFAULT_INTRO =
 		'Tälle listalle ei pääse ihan kuka tahansa. Hall of Fame kokoaa yhteen kuljettajat, jotka ovat nousseet FISU:n kärkeen kauden toisensa jälkeen — muutama isompi kala muiden joukossa.';
 
@@ -46,10 +49,6 @@
 <section class="page-grid section">
 	<h1 class="section__title">Hall of Fame</h1>
 	<p class="section__intro">{data.intro ?? DEFAULT_INTRO}</p>
-
-	{#if data.isMockData}
-		<p class="mock-notice">⚠ Kehitystila: uratilastojen API-yhteys epäonnistui, näytetään esimerkkidataa.</p>
-	{/if}
 
 	<div class="fluid-grid" data-minsize="320px" data-gap="4">
 		{#each data.entries as entry (entry.driverId)}
@@ -93,17 +92,6 @@
 		margin-top: var(--space-2);
 		max-width: 40rem;
 		color: var(--color-text-muted);
-	}
-
-	.mock-notice {
-		margin-top: var(--space-4);
-		padding: var(--space-2) var(--space-4);
-		border-radius: var(--radius-sm);
-		background: color-mix(in oklch, var(--color-warning) 15%, var(--color-bg));
-		border: 1px solid color-mix(in oklch, var(--color-warning) 40%, transparent);
-		color: var(--color-warning);
-		font-size: var(--font-size-sm);
-		font-weight: 600;
 	}
 
 	.fluid-grid {

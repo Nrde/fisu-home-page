@@ -13,12 +13,6 @@
 <section class="page-grid section">
 	<h1 class="section__title">Radat</h1>
 
-	{#if data.isMockData}
-		<p class="mock-notice">
-			⚠ Kehitystila: API-yhteys epäonnistui, sivu näyttää esimerkkidataa.
-		</p>
-	{/if}
-
 	<div class="fluid-grid" data-minsize="280px" data-gap="4">
 		{#each data.tracks as track (track.id)}
 			<TrackCard
@@ -45,14 +39,4 @@
 		margin-bottom: var(--space-6);
 	}
 
-	.mock-notice {
-		margin-bottom: var(--space-6);
-		padding: var(--space-2) var(--space-4);
-		border-radius: var(--radius-sm);
-		background: color-mix(in oklch, var(--color-warning) 15%, var(--color-bg));
-		border: 1px solid color-mix(in oklch, var(--color-warning) 40%, transparent);
-		color: var(--color-warning);
-		font-size: var(--font-size-sm);
-		font-weight: 600;
-	}
 </style>
