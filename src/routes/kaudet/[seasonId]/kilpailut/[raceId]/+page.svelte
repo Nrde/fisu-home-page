@@ -53,10 +53,6 @@
 <section class="page-grid section">
 	<a href="/kaudet/{data.seasonId}" class="link back-link">← Takaisin kauteen</a>
 
-	{#if data.isMockData}
-		<p class="mock-notice">⚠ Kehitystila: API-yhteys epäonnistui, sivu näyttää esimerkkidataa.</p>
-	{/if}
-
 	<h1 class="race-name">{data.result.trackName}</h1>
 	<p class="race-season">{data.result.seasonName}</p>
 
@@ -64,7 +60,7 @@
 		label="Tulosten järjestys"
 		bind:value={resultSort}
 		options={[
-			{ value: 'position', label: 'Lopputulos' },
+			{ value: 'position', label: 'Lopputulokset' },
 			{ value: 'lapTime', label: 'Nopein kierros' },
 			{ value: 'positionChange', label: 'Sijoja voitettu/hävitty' }
 		]}
@@ -117,16 +113,5 @@
 
 	.result-grid__item {
 		min-width: 0;
-	}
-
-	.mock-notice {
-		margin-bottom: var(--space-6);
-		padding: var(--space-2) var(--space-4);
-		border-radius: var(--radius-sm);
-		background: color-mix(in oklch, var(--color-warning) 15%, var(--color-bg));
-		border: 1px solid color-mix(in oklch, var(--color-warning) 40%, transparent);
-		color: var(--color-warning);
-		font-size: var(--font-size-sm);
-		font-weight: 600;
 	}
 </style>

@@ -34,10 +34,6 @@
 <section class="page-grid section">
 	<a href="/kuljettajat" class="link back-link">← Kaikki kuljettajat</a>
 
-	{#if data.isMockData}
-		<p class="mock-notice">⚠ Kehitystila: API-yhteys epäonnistui, sivu näyttää esimerkkidataa.</p>
-	{/if}
-
 	<h1 class="driver-name">{data.career.driverName}</h1>
 	{#if stats.averagePosition !== undefined}
 		<p class="driver-average">Keskimääräinen sijoitus {stats.averagePosition.toLocaleString('fi-FI')}</p>
@@ -146,16 +142,5 @@
 		display: block;
 		color: inherit;
 		text-decoration: none;
-	}
-
-	.mock-notice {
-		margin-bottom: var(--space-6);
-		padding: var(--space-2) var(--space-4);
-		border-radius: var(--radius-sm);
-		background: color-mix(in oklch, var(--color-warning) 15%, var(--color-bg));
-		border: 1px solid color-mix(in oklch, var(--color-warning) 40%, transparent);
-		color: var(--color-warning);
-		font-size: var(--font-size-sm);
-		font-weight: 600;
 	}
 </style>

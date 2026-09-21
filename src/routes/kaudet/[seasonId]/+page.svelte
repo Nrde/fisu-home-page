@@ -67,10 +67,6 @@
 <section class="page-grid section">
 	<a href="/kaudet" class="link back-link">← Kaikki kaudet</a>
 
-	{#if data.isMockData}
-		<p class="mock-notice">⚠ Kehitystila: API-yhteys epäonnistui, sivu näyttää esimerkkidataa.</p>
-	{/if}
-
 	<h1 class="season-name">{data.season.name}</h1>
 
 	<div class="section__header">
@@ -221,16 +217,5 @@
 
 	.link {
 		font-size: inherit;
-	}
-
-	.mock-notice {
-		margin-bottom: var(--space-6);
-		padding: var(--space-2) var(--space-4);
-		border-radius: var(--radius-sm);
-		background: color-mix(in oklch, var(--color-warning) 15%, var(--color-bg));
-		border: 1px solid color-mix(in oklch, var(--color-warning) 40%, transparent);
-		color: var(--color-warning);
-		font-size: var(--font-size-sm);
-		font-weight: 600;
 	}
 </style>
