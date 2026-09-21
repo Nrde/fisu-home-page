@@ -1,0 +1,150 @@
+/**
+ * Globaalit layout-apuluokat. Komponenttikohtainen CSS asuu aina
+ * itse .svelte-tiedostossa (<style>-lohko) — tämä tiedosto sisältää
+ * VAIN sivunlaajuisia rakenteita joita useampi route jakaa.
+ */
+
+/*
+ * Page-grid: kolmisarakkeinen ulkoreuna-grid. Keskimmäinen sarake on
+ * sisällön max-leveys, reunasarakkeet vievät lopun tilan — näin
+ * "bleed"-elementit (esim. Heron tausta) voivat venyä koko leveydelle
+ * kun taas tavallinen sisältö pysyy luettavan levyisenä.
+ */
+.page-grid {
+	display: grid;
+	grid-template-columns:
+		1fr
+		min(var(--content-max-width), 100% - var(--space-8) * 2)
+		1fr;
+}
+
+.page-grid > * {
+	grid-column: 2;
+}
+
+.page-grid > .bleed {
+	grid-column: 1 / -1;
+}
+
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+.skip-link {
+	position: absolute;
+	top: -100%;
+	left: var(--space-4);
+	z-index: 100;
+	padding: var(--space-2) var(--space-4);
+	background: var(--color-info);
+	color: var(--color-bg);
+	border-radius: var(--radius-sm);
+	font-weight: 600;
+	transition: top var(--duration-fast) var(--ease-out-quart);
+}
+
+.skip-link:focus-visible {
+	top: var(--space-4);
+}
+
+/*
+ * Inline-tekstilinkki (esim. "Koko taulukko →"). Alleviivaus on aina
+ * näkyvissä mutta himmeänä (väristä sekoitettu, ~35 % peittävyys) —
+ * hover kirkastaa sekä tekstin että viivan täyteen väriin. Näin linkki
+ * tunnistuu linkiksi heti, mutta hover antaa silti selkeän palautteen,
+ * eikä mikään "hyppää" pixel-tarkasti kun viiva on koko ajan paikallaan.
+ * Navigaation linkit (Header) EIVÄT käytä tätä — niissä alleviivaus
+ * toistuisi liikaa rinnakkain ja pelkkä värinvaihto riittää.
+ */
+.link {
+	color: var(--color-info);
+	font-weight: 600;
+	text-decoration-line: underline;
+	text-decoration-color: color-mix(in oklch, var(--color-info) 35%, transparent);
+	text-decoration-thickness: from-font;
+	text-underline-offset: 0.2em;
+	transition:
+		color var(--duration-fast) var(--ease-out-quart),
+		text-decoration-color var(--duration-fast) var(--ease-out-quart);
+}
+
+.link:hover {
+	color: var(--color-text);
+	text-decoration-color: currentColor;
+}
+
+/*
+ * Fluid-grid: HTML kertoo data-minsize/data-gap:lla mitä tarvitsee,
+ * CSS päättää miten se näytetään. Ks. suunnitelman luku 3.4.1 ja 3.4.5 —
+ * tavallinen custom property -pohja ensin, tyypitetty attr() upgradena
+ * @supports-suojattuna (Safari ei vielä tue attr(type(...)):ia vakaasti).
+ */
+@layer components {
+	.fluid-grid {
+		--minsize: 260px;
+		--gap: var(--space-4);
+
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(min(var(--minsize), 100%), 1fr));
+		gap: var(--gap);
+		/*
+		 * HUOM (käyttäjän palaute 21.9.2026): CSS Gridin OLETUS
+		 * (`align-items: stretch`) venyttää KAIKKI saman rivin solut
+		 * yhtä korkeiksi kuin rivin korkein — jos yksi kortti tarvitsee
+		 * ylimääräisen rivin (esim. pitkä nimi rivittyy), koko sen
+		 * grid-rivin muutkin kortit venyvät turhaan korkeammiksi.
+		 * `start` irrottaa kortit toisistaan: jokainen kortti on vain
+		 * niin korkea kuin oma sisältönsä vaatii, riippumatta naapureista
+		 * samalla rivillä.
+		 */
+		align-items: start;
+	}
+
+	.fluid-grid[data-minsize='220px'] {
+		--minsize: 220px;
+	}
+	.fluid-grid[data-minsize='300px'] {
+		--minsize: 300px;
+	}
+	.fluid-grid[data-minsize='320px'] {
+		--minsize: 320px;
+	}
+
+	@supports (x: attr(x type(*))) {
+		.fluid-grid {
+			--minsize: attr(data-minsize type(<length>), 260px);
+			--gap: attr(data-gap cqi, var(--space-4));
+		}
+	}
+
+	/*
+	 * Korttien tiheys (density) — valuu container style queryn kautta
+	 * lapsikomponentteihin (StatTile, DriverCard). Ks. luku 3.4.2.
+	 * data-density on tavallinen HTML-attribuutti templatessa,
+	 * --density on custom property jota lapset kysyvät @container
+	 * style(--density: ...) -kyselyllä.
+	 */
+	.fluid-grid {
+		--density: comfortable;
+	}
+	.fluid-grid[data-density='compact'] {
+		--density: compact;
+	}
+	.fluid-grid[data-density='spacious'] {
+		--density: spacious;
+	}
+
+	@supports (x: attr(x type(*))) {
+		.fluid-grid {
+			--density: attr(data-density type(<custom-ident>), comfortable);
+		}
+	}
+}

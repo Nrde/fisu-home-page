@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="text-scale" content="scale" />
+		%sveltekit.head%
+	</head>
+	<!--
+		HUOM (22.9.2026, käyttäjän päätös): hover-preload POISTETTU
+		koko sivustolta ("false" — HUOM: "off" EI ole kelvollinen arvo
+		tässä SvelteKit-versiossa, sallitut ovat "", "false", "tap",
+		"hover", ks. konsolin varoitus jos joku yrittää "off":ia
+		uudelleen). Syy: radat/[trackid]/+page.server.ts:n
+		load() tekee raskaan N+1-hakukuvion (organiserSummary + JOKAISEN
+		kauden /races/{season} erikseen, ~20+ kutsua) kisahistorian
+		täsmäytystä varten — tämä laukesi AIEMMIN jo pelkästä hiiren
+		viennistä radan kortin päälle (ei tarvinnut edes klikata), ja
+		koska jokainen ERI rata vaatii OMAN ainutlaatuisen laskentansa,
+		selaimen navigointi-cache ei auta: 5 eri kortin ylitse liikkuva
+		hiiri = 5 kertaa ~20+ turhaa taustakutsua ennen yhtäkään
+		klikkausta. "false" tarkoittaa että data ladataan vasta oikeasta
+		navigoinnista (klikkaus/Enter), ei enää ennakoivasti — hidastaa
+		hieman koettua navigointinopeutta KEVYEMMILLÄKIN sivuilla
+		(Kaudet, Kuljettajat), mutta käyttäjän tietoinen valinta koska
+		turhien taustakutsujen määrä koettiin tärkeämmäksi.
+	-->
+	<body data-sveltekit-preload-data="false">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>
