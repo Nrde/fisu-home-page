@@ -59,6 +59,11 @@ const MOCK_CURRENT_SEASON: CurrentSeason = {
 	// sama luku kuin alla olevien kuljettajien racesCount:in YLÄRAJA
 	// (kukaan ei voi olla ajanut enempää kuin kauden ajetut kisat).
 	totalRaces: 6,
+	// Käyttäjän huomio 22.9.2026: juuri nyt ("suurimman osan vuotta") ei
+	// ole kautta käynnissä — mock heijastaa tätä normaalitilaa (false),
+	// jotta Hero.svelte:n kompakti/ei-käynnissä-ulkoasu on se mitä
+	// kehitystilassa oikeastikin nähdään, ei poikkeustapaus jota ei testata.
+	isOngoing: false,
 	standings: [
 		{
 			driverId: 1,
@@ -293,7 +298,15 @@ export const load: PageServerLoad = async ({ fetch }) => {
 			// kommentti CurrentSeason-tyypissä) — `finishedRaceIds.length` on
 			// jo haettu Aalto 2:ssa upcomingRacea varten, joten tämä on
 			// ILMAINEN, ei uusi API-kutsu.
-			currentSeason: { ...currentSeason, totalRaces: finishedRaceIds.length },
+			currentSeason: {
+				...currentSeason,
+				totalRaces: finishedRaceIds.length,
+				// `currentSeasonInfo.data` on jo haettu Aalto 1:ssä
+				// `pickDisplaySeasonId`:ä varten — `!== null` kertoo suoraan
+				// oliko TÄMÄ kausi oikeasti käynnissä vai fallback-valittu
+				// viimeisin päättynyt (ks. CurrentSeason.isOngoing-kommentti).
+				isOngoing: currentSeasonInfo.data !== null
+			},
 			communityStats: mapCommunityStats(stats),
 			upcomingRace,
 			latestRaceResult,

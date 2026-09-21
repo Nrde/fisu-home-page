@@ -155,7 +155,7 @@
 	/>
 </svelte:head>
 
-<Hero seasonName={data.currentSeason.name} />
+<Hero seasonName={data.currentSeason.name} isOngoing={data.currentSeason.isOngoing} />
 
 {#if data.isMockData}
 	<div class="page-grid">
@@ -165,8 +165,7 @@
 	</div>
 {/if}
 
-<section class="page-grid section">
-	<h2 class="section__title">Yhteisö numeroina</h2>
+<section class="page-grid section section--stats">
 	<div class="fluid-grid" data-minsize="220px" data-gap="4">
 		{#each data.communityStats as stat (stat.label)}
 			<StatTile value={stat.value} label={stat.label} context={stat.context} />
@@ -257,6 +256,14 @@
 <style>
 	.section {
 		padding-block: var(--space-12);
+	}
+
+	/* "Yhteisö numeroina" -otsikko poistettu (käyttäjän pyyntö 22.9.2026)
+	   ja tämä on ensimmäinen osio Heron jälkeen — pienempi yläpadding
+	   tuo statslaatat lähemmäs Hero-otsikkoa sen sijaan että väliin
+	   jäisi sama tila kuin ennen otsikkorivin omaa marginaalia. */
+	.section--stats {
+		padding-top: var(--space-4);
 	}
 
 	.section__header {

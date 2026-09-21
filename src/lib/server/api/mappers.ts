@@ -103,6 +103,22 @@ export interface CurrentSeason {
 	 * kehitystilan mock-datassa ELLEI sitä erikseen aseteta.
 	 */
 	totalRaces?: number;
+	/**
+	 * Onko `id`:llä kuvattu kausi OIKEASTI käynnissä juuri nyt, vai onko
+	 * kyseessä `pickDisplaySeasonId`:n fallback (viimeisin PÄÄTTYNYT
+	 * kausi, koska mitään ei ole käynnissä juuri nyt — ks. sen kommentti,
+	 * tämä on normaali tila suurimman osan vuotta). EI tule
+	 * `mapCurrentSeason`:sta (se ei tiedä tätä, `/results/organiser/
+	 * {organiser}/summary` ei kerro onko kausi käynnissä) — lasketaan
+	 * +page.server.ts:ssä `currentSeasonInfo.data !== null`:sta, joka on
+	 * jo haettu joka tapauksessa `pickDisplaySeasonId`:ä varten. Käyttäjän
+	 * pyyntö 22.9.2026: Hero.svelte käyttää tätä päättääkseen näytetäänkö
+	 * "Käynnissä nyt" -badge/kausinimi/kausi-CTA:t vai ei — kun mitään ei
+	 * ole käynnissä, ne eivät näytä oikealta viimeisimmän PÄÄTTYNEEN
+	 * kauden päällä. `undefined` kehitystilan mock-datassa ELLEI sitä
+	 * erikseen aseteta (käsitellään falsy:na, ei "käynnissä").
+	 */
+	isOngoing?: boolean;
 }
 
 /**
