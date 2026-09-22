@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { DISCORD_INVITE_URL } from '$app/env/public';
 	import Button from '#lib/components/ui/Button.svelte';
 
 	const navLinks = [
@@ -30,7 +31,7 @@
 		</nav>
 
 		<div class="site-header__cta site-header__cta--desktop">
-			<Button variant="ghost" href="https://discord.gg/">Discord</Button>
+			<Button variant="ghost" href={DISCORD_INVITE_URL}>Discord</Button>
 		</div>
 
 		<button
@@ -57,7 +58,7 @@
 					<li><a href={link.href} onclick={() => (mobileMenuOpen = false)}>{link.label}</a></li>
 				{/each}
 				<li>
-					<a href="https://discord.gg/" onclick={() => (mobileMenuOpen = false)}>Discord</a>
+					<a href={DISCORD_INVITE_URL} onclick={() => (mobileMenuOpen = false)}>Discord</a>
 				</li>
 			</ul>
 		</nav>

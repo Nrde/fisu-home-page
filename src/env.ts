@@ -36,5 +36,18 @@ export const variables = defineEnvVars({
 	TRACK_IMAGE_BASE_URL: {
 		description: 'Rataprofiilien SVG-karttojen base-URL, esim. https://fisu.simracing.fi/media/radat/',
 		schema: (value: string | undefined) => value ?? 'https://fisu.simracing.fi/media/radat/'
+	},
+
+	// Käyttäjän pyyntö 22.9.2026: FISU:n Discord-kutsulinkki (Header.svelte:n
+	// "Discord"-nappi + mobiilivalikon vastaava linkki) pois kovakoodauksesta.
+	// TOISIN kuin `FISU_API_BASE_URL`/`TRACK_IMAGE_BASE_URL` — tämä NÄYTETÄÄN
+	// SELAIMESSA (linkin href), joten `public: true` on PAKOLLINEN: ilman
+	// sitä muuttuja olisi vain `$app/env/private`:n kautta saatavilla, joka
+	// on serverikoodille varattu moduuli eikä Header.svelte (tavallinen,
+	// selainpuolen komponentti) voisi tuoda sitä lainkaan.
+	DISCORD_INVITE_URL: {
+		description: 'FISU:n Discord-kutsulinkki (näytetään Headerin "Discord"-napissa).',
+		public: true,
+		schema: (value: string | undefined) => value ?? 'https://discord.gg/8r7kyHw'
 	}
 });
