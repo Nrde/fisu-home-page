@@ -41,14 +41,17 @@
 		border-radius: var(--radius-lg);
 		background: var(--color-surface);
 		border: 1px solid var(--color-surface-border);
-		transition:
-			border-color var(--duration-fast) var(--ease-out-quart),
-			transform var(--duration-fast) var(--ease-out-quart);
+		transition: border-color var(--duration-fast) var(--ease-out-quart);
 	}
 
+	/*
+	 * Käyttäjän palaute 22.9.2026 (TrackCard.svelte:n yhteydessä, mutta
+	 * käyttäjä koki saman kaikilla kortti-tyyppisillä komponenteilla):
+	 * `translateY(-2px)`-nosto hoverissa poistettu — jäljellä pelkkä
+	 * reunaväri, ks. TrackCard.svelte:n vastaava kommentti perusteluineen.
+	 */
 	.season-card:hover {
 		border-color: var(--color-info);
-		transform: translateY(-2px);
 	}
 
 	.season-card__name {
