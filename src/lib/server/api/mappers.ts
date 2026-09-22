@@ -540,7 +540,8 @@ export interface Track {
  * (ks. radat/[trackid]/+page.svelte). Ei siis tarvetta network-
  * allowlistille palvelinpuolella.
  */
-const TRACK_IMAGE_BASE_URL = 'https://simu.fi/images/tracks/';
+//const TRACK_IMAGE_BASE_URL = 'https://simu.fi/images/tracks/';
+const TRACK_IMAGE_BASE_URL = 'https://fisu.simracing.fi/media/radat/';
 
 /**
  * Tyhjä merkkijono API:sta EI ole sama asia kuin "ei tietoa" UI:n
