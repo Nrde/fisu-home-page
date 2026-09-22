@@ -7,6 +7,7 @@
  * tätä tiedostoa (ja types.ts:ää) pitää korjata. +page.server.ts ja
  * komponentit eivät tiedä mitään raakamuodosta.
  */
+import { TRACK_IMAGE_BASE_URL } from '$app/env/private';
 import { parseHelsinkiDateTime } from '#lib/utils/helsinkiTime.ts';
 import type {
 	RawCurrentSeasonResponse,
@@ -525,23 +526,14 @@ export interface Track {
 	layout?: string;
 	/**
 	 * Täysi URL rataprofiilin SVG-karttaan, koostettu `TRACK_IMAGE_BASE_
-	 * URL` + `RawTrack.trackimage`:sta. `undefined` jos backend ei anna
-	 * `trackimage`:a tälle radalle (ei kaikilla radoilla, ei bugi) —
-	 * UI:n pitää näyttää kuva ehdollisesti, ei olettaa sitä aina läsnä
-	 * olevaksi.
+	 * URL`:sta (ympäristömuuttuja, ks. `src/env.ts` — ERI ISÄNTÄ kuin
+	 * `FISU_API_BASE_URL`, joten omana muuttujanaan) + `RawTrack.
+	 * trackimage`:sta. `undefined` jos backend ei anna `trackimage`:a
+	 * tälle radalle (ei kaikilla radoilla, ei bugi) — UI:n pitää näyttää
+	 * kuva ehdollisesti, ei olettaa sitä aina läsnä olevaksi.
 	 */
 	imageUrl?: string;
 }
-
-/**
- * Käyttäjän vahvistama base-URL (22.9.2026) rataprofiilien SVG-kartoille
- * — ERI ISÄNTÄ kuin `api2.simu.fi` (pelkkä `simu.fi`), joten näitä EI
- * haeta tämän API-kääreen kautta vaan suoraan selaimesta `<img>`-tagilla
- * (ks. radat/[trackid]/+page.svelte). Ei siis tarvetta network-
- * allowlistille palvelinpuolella.
- */
-//const TRACK_IMAGE_BASE_URL = 'https://simu.fi/images/tracks/';
-const TRACK_IMAGE_BASE_URL = 'https://fisu.simracing.fi/media/radat/';
 
 /**
  * Tyhjä merkkijono API:sta EI ole sama asia kuin "ei tietoa" UI:n
@@ -643,9 +635,21 @@ export interface SeasonListEntry {
 	id: number;
 	name: string;
 	driversCount: number;
-	/** Kauden sarjajohtaja (pos 1) — `undefined` vain jos kaudella ei poikkeuksellisesti ole yhtään kuljettajaa. */
+	/** Kauden sarjajohtaja/voittaja (pos 1) — `undefined` vain jos kaudella ei poikkeuksellisesti ole yhtään kuljettajaa. */
 	leaderName?: string;
 	leaderPoints?: number;
+	/**
+	 * Käyttäjän pyyntö 22.9.2026: `/kaudet`-listalla PÄÄTTYNEEN kauden
+	 * "Sarjajohtaja"-labeli näytetään "Voittaja"-tekstillä sen sijaan
+	 * (kausi ei ole enää "käynnissä", joten johtaja ON lopullinen
+	 * voittaja). `true` kun `id` EI täsmää `ongoingSeasonId`:hen — SAMA
+	 * periaate kuin `CurrentSeason.isOngoing`:ssa (ks. sen kommentti),
+	 * vain käänteisenä ja koko listalle kerralla laskettuna sen sijaan
+	 * että vain yhdelle kaudelle. Jos `ongoingSeasonId` on `undefined`
+	 * (ei mitään käynnissä juuri nyt, normaali tila suurimman osan
+	 * vuotta), KAIKKI listan kaudet ovat päättyneitä.
+	 */
+	isOver: boolean;
 }
 
 /**
@@ -654,8 +658,16 @@ export interface SeasonListEntry {
  * yksittäisen kauden sivullakin). Uusin kausi ensin: sama seasonId-
  * suuruusheuristiikka kuin `pickDisplaySeasonId`:ssä (ks. sen kommentti
  * ja sama varaus — ei koodin takaama, mutta paras saatavilla oleva).
+ *
+ * `ongoingSeasonId` tulee `pickDisplaySeasonId`:n TAVOIN `/seasons/
+ * {organiser}/current`:sta (ks. `isOver`-kentän kommentti) — kutsujan
+ * (`+page.server.ts`) vastuulla hakea se, TÄSSÄ funktiossa ei tehdä
+ * uutta API-kutsua.
  */
-export function mapSeasonList(summary: RawOrganiserSummaryResponse): SeasonListEntry[] {
+export function mapSeasonList(
+	summary: RawOrganiserSummaryResponse,
+	ongoingSeasonId: number | undefined
+): SeasonListEntry[] {
 	return summary
 		.map((season) => {
 			const leader = [...season.drivers].sort((a, b) => a.pos - b.pos)[0];
@@ -664,7 +676,8 @@ export function mapSeasonList(summary: RawOrganiserSummaryResponse): SeasonListE
 				name: season.seasonName,
 				driversCount: season.drivers.length,
 				leaderName: leader?.name,
-				leaderPoints: leader?.pts
+				leaderPoints: leader?.pts,
+				isOver: season.seasonId !== ongoingSeasonId
 			};
 		})
 		.sort((a, b) => b.id - a.id);

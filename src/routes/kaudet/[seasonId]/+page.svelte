@@ -165,6 +165,13 @@
 	}
 
 	.race-list {
+		/* Käyttäjän raportoima bugi 22.9.2026: kisalaatikot näyttivät
+		   sisennetyiltä — sama tunnettu ongelma kuin radan tarkennussivun
+		   `.race-history__list`:ssä (ks. sen kommentti): `reset.css` nollaa
+		   VAIN marginaalin (`* { margin: 0 }`), ei `<ul>`:n selaimen
+		   OLETUS-paddingia (`padding-inline-start: 40px`) eikä pisteitä. */
+		list-style: none;
+		padding: 0;
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-2);

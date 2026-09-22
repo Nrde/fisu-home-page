@@ -24,5 +24,17 @@ export const variables = defineEnvVars({
 		// riippuvuutta yhden merkkijonon oletusarvolle): palauttaa arvon
 		// jos asetettu, muuten kovakoodatun oletuksen.
 		schema: (value: string | undefined) => value ?? 'https://api2.simu.fi'
+	},
+
+	// Käyttäjän pyyntö 22.9.2026: rataprofiilien SVG-karttojen base-URL
+	// (ks. mappers.ts:n `Track.imageUrl`-kommentti) siirretty kovakoodatusta
+	// vakiosta tänne — ERI ISÄNTÄ kuin `FISU_API_BASE_URL` (kartat ladataan
+	// SUORAAN selaimesta, ei tämän sovelluksen API-kääreen kautta), joten
+	// tämä on oma muuttujansa eikä sidottu API-osoitteeseen. Oletusarvo on
+	// käyttäjän VAHVISTAMA nykyinen osoite — muuttuu vain jos rataprofiili-
+	// kuvat joskus siirtyvät toiseen paikkaan.
+	TRACK_IMAGE_BASE_URL: {
+		description: 'Rataprofiilien SVG-karttojen base-URL, esim. https://fisu.simracing.fi/media/radat/',
+		schema: (value: string | undefined) => value ?? 'https://fisu.simracing.fi/media/radat/'
 	}
 });

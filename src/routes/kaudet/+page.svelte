@@ -13,7 +13,9 @@
 <section class="page-grid section">
 	<h1 class="section__title">Kaudet</h1>
 
-	<div class="fluid-grid" data-minsize="280px" data-gap="4">
+	<!-- Käyttäjän pyyntö 22.9.2026: `data-gap` pienennetty (oli "4") —
+	     korttien välinen tila oli turhan suuri. -->
+	<div class="fluid-grid" data-minsize="280px" data-gap="3">
 		{#each data.seasons as season (season.id)}
 			<SeasonCard
 				id={season.id}
@@ -21,6 +23,7 @@
 				driversCount={season.driversCount}
 				leaderName={season.leaderName}
 				leaderPoints={season.leaderPoints}
+				isOver={season.isOver}
 			/>
 		{/each}
 	</div>
