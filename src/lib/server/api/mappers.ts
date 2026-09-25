@@ -1186,46 +1186,43 @@ export function mapSeasonTrends(response: RawStatsCompleteResponse): SeasonTrend
 /**
  * Autot — UUSI 2026-09-25, käyttäjän pyynnöstä ("aloitetaan autodatan
  * hyödyntäminen kausi-/kisasivuilla"). Käsin ylläpidetty sanakirja, ks.
- * types.ts:n RawCar-kommentti. `manufacturer`/`class` ovat `null` kunnes
- * ylläpito täyttää ne — `undefined`:ksi muunnettuna komponenttien
- * props-rajapinnan mukaisesti, sama periaate kuin muillakin valinnaisilla
- * kentillä tässä tiedostossa.
+ * types.ts:n RawCar-kommentti. `manufacturer`/`class`/`sim`/`notes` ovat
+ * `null` kunnes ylläpito täyttää ne — `undefined`:ksi muunnettuna
+ * komponenttien props-rajapinnan mukaisesti, sama periaate kuin muillakin
+ * valinnaisilla kentillä tässä tiedostossa.
+ *
+ * PÄIVITYS (25.9.2026, käyttäjän palaute): aiempi `SeasonCarInfo`/
+ * `singleCar`-erottelu (ks. tämän kommentin git-historia) poistettu —
+ * UI näyttää nyt JOKAISEN poolin auton samalla tavalla klikattavana
+ * linkkinä `/autot/{id}`:hen (ks. `<CarList>`-komponentti), joten "vain
+ * yksi auto koko kaudella" -tapaus tulee automaattisesti oikein kun
+ * poolissa sattuu olemaan vain yksi alkio — erillistä UI-erikoistapausta
+ * ei enää tarvita. `car_assignments`-taulu (kuka kuljettaja ajoi millä
+ * autolla) on edelleen tyhjä backendissä (ks. API-kenttäkartan "Autot"-
+ * kohta) — tämä ei silti muuta poolin NÄYTTÖTAPAA, vain sen ettei per-
+ * kuljettaja-tietoa vielä ole.
  */
 export interface Car {
 	id: number;
 	name: string;
 	manufacturer?: string;
 	class?: string;
+	sim?: string;
+	notes?: string;
 }
 
-/**
- * Kauden autotieto kausi-/kisasivuille. `car_assignments`-taulu (kuka
- * kuljettaja ajoi millä autolla) on TOISTAISEKSI tyhjä backendissä (ks.
- * API-kenttäkartan "Autot"-kohta, tilanne 25.9.2026) — emme siis (vielä)
- * voi näyttää PER KULJETTAJA mitä autoa tämä ajoi. Käyttäjän oma huomio
- * 25.9.2026 kuitenkin: jos kauden autopoolissa on TASAN yksi auto,
- * JOKAINEN kuljettaja/kisa kaudella käytti väistämättä juuri sitä
- * autoa — tätä tapausta ei tarvitse odottaa `car_assignments`:n
- * täyttymistä, se on pääteltävissä suoraan poolin koosta. Useamman
- * auton kausilla EI arvata ketä ajoi mitä, `singleCar` jää `undefined`:ksi
- * ja UI näyttää vain koko poolin (ks. `<CarInfo>`-komponentti).
- */
-export interface SeasonCarInfo {
-	pool: Car[];
-	/** Asetettu vain kun `pool.length === 1` — ks. yllä oleva luokan kommentti. */
-	singleCar?: Car;
-}
-
-function mapCar(raw: RawCar): Car {
+export function mapCar(raw: RawCar): Car {
 	return {
 		id: raw.id,
 		name: raw.name,
 		manufacturer: raw.manufacturer ?? undefined,
-		class: raw.class ?? undefined
+		class: raw.class ?? undefined,
+		sim: raw.sim || undefined,
+		notes: raw.notes ?? undefined
 	};
 }
 
-export function mapSeasonCarInfo(raw: RawCarListResponse): SeasonCarInfo {
-	const pool = raw.map(mapCar);
-	return { pool, singleCar: pool.length === 1 ? pool[0] : undefined };
+/** Sama muunnos kelpaa sekä kauden autopoolille (`/cars/season/{id}`) että koko sanakirjalle (`/cars`, ks. autot/[carId]-sivu) — molemmat ovat `RawCar[]`. */
+export function mapCars(raw: RawCarListResponse): Car[] {
+	return raw.map(mapCar);
 }

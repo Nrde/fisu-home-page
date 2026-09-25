@@ -5,7 +5,7 @@
 	 * +page.svelte:n `resultSort`/`sortedResults`-kommentit) — sama data,
 	 * sama UX, mikä tahansa kisa (ei vain kauden viimeisin).
 	 */
-	import CarInfo from '#lib/components/ui/CarInfo.svelte';
+	import CarList from '#lib/components/ui/CarList.svelte';
 	import RaceResultRow from '#lib/components/ui/RaceResultRow.svelte';
 	import SegmentedControl from '#lib/components/ui/SegmentedControl.svelte';
 	import { parseLapTimeSeconds } from '#lib/utils/lapTime.ts';
@@ -57,9 +57,7 @@
 	<h1 class="race-name">{data.result.trackName}</h1>
 	<p class="race-season">{data.result.seasonName}</p>
 
-	{#if data.carInfo}
-		<CarInfo pool={data.carInfo.pool} singleCar={data.carInfo.singleCar} />
-	{/if}
+	<CarList cars={data.cars} />
 
 	<SegmentedControl
 		label="Tulosten järjestys"

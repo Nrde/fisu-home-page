@@ -5,7 +5,7 @@
  * `/finishedraces/{season}` (mitkä kisat on ajettu) — sama data jota
  * etusivukin jo käyttää nykyiselle kaudelle, tässä minkä tahansa
  * `seasonId`:n mukaan — ja UUSI 25.9.2026 `/cars/season/{season}`
- * (kauden autopooli, ks. mappers.ts:n SeasonCarInfo-kommentti).
+ * (kauden autopooli, ks. mappers.ts:n Car-kommentti).
  */
 import { error } from '@sveltejs/kit';
 import {
@@ -15,7 +15,7 @@ import {
 	fetchSeasonCarPool,
 	fetchSeasonRaces
 } from '#lib/server/api/client.ts';
-import { mapCurrentSeason, mapSeasonCarInfo, mapSeasonRaceList } from '#lib/server/api/mappers.ts';
+import { mapCars, mapCurrentSeason, mapSeasonRaceList } from '#lib/server/api/mappers.ts';
 import type { PageServerLoad } from './$types';
 
 const ORGANISER = 'fisu';
@@ -42,7 +42,7 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 		return {
 			season: { ...season, totalRaces: finishedRaceIds.length },
 			races: mapSeasonRaceList(races, new Set(finishedRaceIds)),
-			carInfo: mapSeasonCarInfo(carPool)
+			cars: mapCars(carPool)
 		};
 	} catch (err) {
 		// HUOM: `ApiError`:lla on itselläänkin julkinen `status`-kenttä, joten

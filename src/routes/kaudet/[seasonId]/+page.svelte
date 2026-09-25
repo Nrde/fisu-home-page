@@ -8,7 +8,7 @@
 	 * VAIN ajetuille kisoille (tulevalle kisalle ei ole vielä tuloksia
 	 * haettavana).
 	 */
-	import CarInfo from '#lib/components/ui/CarInfo.svelte';
+	import CarList from '#lib/components/ui/CarList.svelte';
 	import DriverCard from '#lib/components/ui/DriverCard.svelte';
 	import SegmentedControl from '#lib/components/ui/SegmentedControl.svelte';
 	import { flip } from 'svelte/animate';
@@ -70,7 +70,7 @@
 
 	<h1 class="season-name">{data.season.name}</h1>
 
-	<CarInfo pool={data.carInfo.pool} singleCar={data.carInfo.singleCar} />
+	<CarList cars={data.cars} />
 
 	<div class="section__header">
 		<h2 class="section__title">Sarjataulukko</h2>

@@ -232,3 +232,16 @@ export function fetchHallOfFame(fetchFn: typeof fetch, organiser: string) {
 export function fetchSeasonCarPool(fetchFn: typeof fetch, seasonId: number) {
 	return apiFetchEnvelope<RawCarListResponse>(fetchFn, `/cars/season/${seasonId}`);
 }
+
+/**
+ * Hakee KOKO autosanakirjan — UUSI 2026-09-25, `/autot/[carId]`-
+ * tarkennussivua varten (käyttäjän pyyntö: kausi-/kisasivun autoista
+ * pitää päästä klikkaamaan yksittäisen auton tietoihin). HUOM: API:lla
+ * EI ole erillistä "yksi auto id:llä" -endpointia (toisin kuin radoilla,
+ * ks. `/track/{trackId}`) — sivun +page.server.ts hakee tämän koko
+ * listan ja etsii oikean `id`:n, sama kuvio kuin `/radat/[trackid]`:lla
+ * `fetchTracks`:n kanssa.
+ */
+export function fetchCarDictionary(fetchFn: typeof fetch) {
+	return apiFetchEnvelope<RawCarListResponse>(fetchFn, `/cars`);
+}
