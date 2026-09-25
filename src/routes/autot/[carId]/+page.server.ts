@@ -4,11 +4,33 @@
  * -endpointia (toisin kuin radoilla, ks. `/track/{trackId}`) — haetaan
  * siis KOKO autosanakirja (`/cars`) ja etsitään `params.carId`:tä vastaava
  * rivi, sama kuvio kuin `/radat/[trackid]`:lla `fetchTracks`:n kanssa.
+ *
+ * "Kaudet ja kilpailut" -osio (UUSI, käyttäjän pyyntö: "each car lists
+ * the seasons and races they have been part of") on RASKAS "parasta
+ * yritystä" -lisätieto, samalla periaatteella kuin radan tarkennussivun
+ * kisahistoria: haetaan organisaation KAIKKI kaudet, sitten JOKAISEN
+ * kauden autopooli erikseen (N+1), ja vain niille kausille joilla tämä
+ * auto oli AINOA (ks. mappers.ts:n `matchCarSeasons`-kommentti) vielä
+ * kauden koko kisalista. Epäonnistuminen TÄSSÄ ei kaada koko sivua —
+ * itse auton perustiedot näytetään silti.
  */
 import { error } from '@sveltejs/kit';
-import { ApiError, fetchCarDictionary } from '#lib/server/api/client.ts';
-import { mapCars } from '#lib/server/api/mappers.ts';
+import {
+	ApiError,
+	fetchCarDictionary,
+	fetchFinishedRaceIds,
+	fetchOrganiserSummary,
+	fetchSeasonCarPool,
+	fetchSeasonRaces
+} from '#lib/server/api/client.ts';
+import { mapCars, mapSeasonRaceList, matchCarSeasons, type CarSeasonMatch, type SeasonRaceListEntry } from '#lib/server/api/mappers.ts';
 import type { PageServerLoad } from './$types';
+
+const ORGANISER = 'fisu';
+
+export interface CarSeasonHistoryEntry extends CarSeasonMatch {
+	races: SeasonRaceListEntry[];
+}
 
 export const load: PageServerLoad = async ({ params, fetch }) => {
 	const carId = Number(params.carId);
@@ -23,7 +45,38 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 			throw error(404, `Autoa ${carId} ei löytynyt.`);
 		}
 
-		return { car };
+		let seasonHistory: CarSeasonHistoryEntry[] = [];
+		try {
+			const summary = await fetchOrganiserSummary(fetch, ORGANISER);
+			const seasonPools = await Promise.all(
+				summary.map(async (season) => ({
+					seasonId: season.seasonId,
+					seasonName: season.seasonName,
+					pool: mapCars(await fetchSeasonCarPool(fetch, season.seasonId))
+				}))
+			);
+			const matches = matchCarSeasons(carId, seasonPools);
+
+			seasonHistory = await Promise.all(
+				matches.map(async (match) => {
+					if (!match.exclusive) return { ...match, races: [] };
+
+					const [races, finishedRaceIds] = await Promise.all([
+						fetchSeasonRaces(fetch, match.seasonId),
+						fetchFinishedRaceIds(fetch, match.seasonId)
+					]);
+
+					return { ...match, races: mapSeasonRaceList(races, new Set(finishedRaceIds)) };
+				})
+			);
+		} catch (historyError) {
+			console.warn(
+				`[autot/[carId]/+page.server.ts] Kausi-/kisahistorian haku epäonnistui, näytetään silti auton tiedot.`,
+				historyError
+			);
+		}
+
+		return { car, seasonHistory };
 	} catch (err) {
 		// HUOM: sama 404-läpipäästö kuin `/radat/[trackid]`:ssa — `ApiError`
 		// kantaa myös julkista `status`-kenttää, joten se pitää sulkea pois

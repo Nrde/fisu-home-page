@@ -1226,3 +1226,38 @@ export function mapCar(raw: RawCar): Car {
 export function mapCars(raw: RawCarListResponse): Car[] {
 	return raw.map(mapCar);
 }
+
+/**
+ * Auton "kaudet ja kisat" -historia auton tarkennussivulle (UUSI
+ * 25.9.2026, käyttäjän pyyntö: "each car lists the seasons and races
+ * they have been part of"). Sama N+1-kuvio kuin `matchTrackRaceHistory`:
+ * kutsuja (autot/[carId]/+page.server.ts) hakee JOKAISEN kauden
+ * autopoolin erikseen — raskasta, mutta tehdään TARKOITUKSELLA vain
+ * tällä yksittäisen auton tarkennussivulla, ei /autot-indeksissä (ks.
+ * saman periaatteen kommentti radat/[trackid]/+page.server.ts:ssä).
+ *
+ * `exclusive`: kauden autopoolissa oli TASAN yksi auto (tämä), jolloin
+ * TIEDÄMME sen olleen mukana JOKAISESSA kauden kisassa (ks. Car-kommentin
+ * perustelu) — kutsuja hakee tällöin kauden koko kisalistan `races`-
+ * kenttään. Useamman auton kausilla EI tiedetä mitä yksittäisiä kisoja
+ * tämä auto koski (`car_assignments`-taulu tyhjä) — `exclusive` on
+ * `false` ja `races` jää TYHJÄKSI, ei arvata.
+ */
+export interface CarSeasonMatch {
+	seasonId: number;
+	seasonName: string;
+	exclusive: boolean;
+}
+
+export function matchCarSeasons(
+	carId: number,
+	seasonPools: { seasonId: number; seasonName: string; pool: Car[] }[]
+): CarSeasonMatch[] {
+	return seasonPools
+		.filter((season) => season.pool.some((car) => car.id === carId))
+		.map((season) => ({
+			seasonId: season.seasonId,
+			seasonName: season.seasonName,
+			exclusive: season.pool.length === 1
+		}));
+}
