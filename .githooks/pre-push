@@ -1,0 +1,9 @@
+#!/bin/sh
+# Blocks `git push` unless the project type-checks and builds.
+# Enable once per clone: pnpm hooks:install
+# Bypass in an emergency: git push --no-verify
+echo "pre-push: running pnpm verify..."
+pnpm verify || {
+	echo "pre-push: verification failed, push aborted." >&2
+	exit 1
+}

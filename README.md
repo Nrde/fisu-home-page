@@ -29,6 +29,12 @@ npm run dev
 npm run dev -- --open
 ```
 
+## Workflow
+
+Work locally, verify, then push. Run `pnpm hooks:install` once per clone so that
+`git push` runs `pnpm verify` (type check + build) first and aborts on failure.
+See `CLAUDE.md` for details.
+
 ## Building
 
 To create a production version of your app:
