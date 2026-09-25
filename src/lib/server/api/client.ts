@@ -25,6 +25,7 @@
 import { dev } from '$app/env';
 import { FISU_API_BASE_URL } from '$app/env/private';
 import type {
+	RawCarListResponse,
 	RawCurrentSeasonResponse,
 	RawDriverCareerResponse,
 	RawFinishedRaceIdsResponse,
@@ -210,4 +211,24 @@ export function fetchStatsComplete(fetchFn: typeof fetch, organiser: string) {
  */
 export function fetchHallOfFame(fetchFn: typeof fetch, organiser: string) {
 	return apiFetch<RawHallOfFameResponse>(fetchFn, `/halloffame/${organiser}`);
+}
+
+/**
+ * Hakee kauden autopoolin — UUSI 2026-09-25, käyttäjän pyynnöstä
+ * ("aloitetaan autodatan hyödyntäminen kausi-/kisasivuilla"). HUOM:
+ * `/races/{season}` palauttaa saman poolin sivukentässään (`cars`,
+ * ks. API-kenttäkartan kohta 3), mutta se vaatisi `fetchSeasonRaces`in
+ * paluumuodon muuttamisen kolmen eri kutsupaikan takia (etusivu, kausi-
+ * sivu, radat/[trackid]) — tämä oma, suora kutsu `/cars/season/
+ * {seasonId}`-endpointtiin on kevyempi muutos ja toimii myös kisasivulla,
+ * jolla EI muuten haeta `/races/{season}`:ia lainkaan (kisasivu tarvitsee
+ * vain kisa-id:n, ks. sen +page.server.ts:n kommentti).
+ *
+ * `car_assignments`-taulu (kuka ajoi mitä) on TOISTAISEKSI tyhjä — tätä
+ * poolia käytetään VAIN yhdessä `mappers.ts`:n `mapSeasonCarInfo`:n
+ * kanssa, joka päättelee per-kuljettaja-auton VAIN kun poolissa on
+ * TASAN yksi auto (jolloin jokainen kuljettaja väistämättä ajoi sitä).
+ */
+export function fetchSeasonCarPool(fetchFn: typeof fetch, seasonId: number) {
+	return apiFetchEnvelope<RawCarListResponse>(fetchFn, `/cars/season/${seasonId}`);
 }

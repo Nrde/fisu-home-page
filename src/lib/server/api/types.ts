@@ -363,6 +363,29 @@ export interface RawDriverCareerResponse {
 }
 
 /**
+ * GET /cars/season/{season} — kauden autopooli (mitkä autot ovat
+ * käytössä TÄLLÄ kaudella), ks. API-kenttäkartan "Autot"-kohta
+ * (25.9.2026). Käsin ylläpidetty sanakirja (`cars`-taulu) — `manufacturer`/
+ * `class`/`notes` ovat usein `null`, täytetään ylläpidon toimesta ajan
+ * myötä. HUOM: TÄMÄ endpoint EI kerro KUKA kuljettaja ajoi millä autolla
+ * — se vaatisi `car_assignments`-taulun, joka on TOISTAISEKSI tyhjä
+ * (ks. client.ts:n `fetchSeasonCarPool`-kommentti ja mappers.ts:n
+ * `mapSeasonCarInfo`, joka päättelee per-kuljettaja-tiedon VAIN silloin
+ * kun poolissa on tasan yksi auto).
+ */
+export interface RawCar {
+	id: number;
+	extId: number;
+	sim: string;
+	name: string;
+	manufacturer: string | null;
+	class: string | null;
+	notes: string | null;
+}
+
+export type RawCarListResponse = RawCar[];
+
+/**
  * Hall of Fame -rivi — API-kenttäkartta 22.9.2026 (korjattu versio:
  * `driverName` nostettu omaksi kentäksi, `stats` rajattu TARKALLEEN
  * samaan muotoon kuin `RawDriverCareerResponse.data.careerStats`, ei

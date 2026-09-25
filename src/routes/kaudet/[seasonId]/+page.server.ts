@@ -1,19 +1,21 @@
 /**
  * Yksittäisen kauden sivu: sarjataulukko + kauden koko kisalista
- * (ajetut + tulevat, tilamerkinnällä). Kolme rinnakkaista API-kutsua:
- * `organiserSummary` (sarjataulukko), `/races/{season}` (kisalista) ja
+ * (ajetut + tulevat, tilamerkinnällä). Neljä rinnakkaista API-kutsua:
+ * `organiserSummary` (sarjataulukko), `/races/{season}` (kisalista),
  * `/finishedraces/{season}` (mitkä kisat on ajettu) — sama data jota
  * etusivukin jo käyttää nykyiselle kaudelle, tässä minkä tahansa
- * `seasonId`:n mukaan.
+ * `seasonId`:n mukaan — ja UUSI 25.9.2026 `/cars/season/{season}`
+ * (kauden autopooli, ks. mappers.ts:n SeasonCarInfo-kommentti).
  */
 import { error } from '@sveltejs/kit';
 import {
 	ApiError,
 	fetchFinishedRaceIds,
 	fetchOrganiserSummary,
+	fetchSeasonCarPool,
 	fetchSeasonRaces
 } from '#lib/server/api/client.ts';
-import { mapCurrentSeason, mapSeasonRaceList } from '#lib/server/api/mappers.ts';
+import { mapCurrentSeason, mapSeasonCarInfo, mapSeasonRaceList } from '#lib/server/api/mappers.ts';
 import type { PageServerLoad } from './$types';
 
 const ORGANISER = 'fisu';
@@ -31,14 +33,16 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 			throw error(404, `Kautta ${seasonId} ei löytynyt.`);
 		}
 
-		const [races, finishedRaceIds] = await Promise.all([
+		const [races, finishedRaceIds, carPool] = await Promise.all([
 			fetchSeasonRaces(fetch, seasonId),
-			fetchFinishedRaceIds(fetch, seasonId)
+			fetchFinishedRaceIds(fetch, seasonId),
+			fetchSeasonCarPool(fetch, seasonId)
 		]);
 
 		return {
 			season: { ...season, totalRaces: finishedRaceIds.length },
-			races: mapSeasonRaceList(races, new Set(finishedRaceIds))
+			races: mapSeasonRaceList(races, new Set(finishedRaceIds)),
+			carInfo: mapSeasonCarInfo(carPool)
 		};
 	} catch (err) {
 		// HUOM: `ApiError`:lla on itselläänkin julkinen `status`-kenttä, joten

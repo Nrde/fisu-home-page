@@ -1,11 +1,22 @@
 /**
  * Yksittäisen kisan tulossivu. HUOM: `seasonId`-reittiparametria EI
- * tarvita itse datahakuun (`/results/race/{id}` ei ota kausi-id:tä,
- * kisa-id yksin riittää) — se on mukana URL:ssa VAIN "← Takaisin
- * kauteen" -breadcrumb-linkkiä varten (ks. +page.svelte).
+ * tarvita KISAN OMAAN datahakuun (`/results/race/{id}` ei ota kausi-
+ * id:tä, kisa-id yksin riittää) — alun perin se oli mukana URL:ssa VAIN
+ * "← Takaisin kauteen" -breadcrumb-linkkiä varten (ks. +page.svelte).
+ *
+ * UUSI 25.9.2026: `seasonId`:tä käytetään NYT myös kauden autopoolin
+ * hakuun (`/cars/season/{seasonId}`) — ks. mappers.ts:n SeasonCarInfo-
+ * kommentti: jos poolissa on tasan yksi auto, se koskee JOKAISTA tämän
+ * kauden kisaa (myös tätä), joten kisasivukin voi näyttää sen ilman
+ * `car_assignments`-taulua (joka on toistaiseksi tyhjä). `seasonId` EI
+ * tässä ole yhtä luotettavasti validoitu kuin `raceId` (ei aiemmin
+ * tarvinnut olla, ks. yllä) — jos se ei jostain syystä olisikaan
+ * kelvollinen numero, autopoolin haku ohitetaan hiljaisesti eikä kaadeta
+ * koko sivua sen takia, koska autotieto on tällä sivulla lisätietoa,
+ * ei pääsisältöä.
  */
-import { ApiError, fetchRaceResult } from '#lib/server/api/client.ts';
-import { mapLatestRaceResult } from '#lib/server/api/mappers.ts';
+import { ApiError, fetchRaceResult, fetchSeasonCarPool } from '#lib/server/api/client.ts';
+import { mapLatestRaceResult, mapSeasonCarInfo, type SeasonCarInfo } from '#lib/server/api/mappers.ts';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, fetch }) => {
@@ -15,8 +26,16 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 	}
 
 	try {
-		const result = mapLatestRaceResult(raceId, await fetchRaceResult(fetch, raceId));
-		return { result, seasonId: params.seasonId };
+		const seasonId = Number(params.seasonId);
+
+		const [result, carInfo] = await Promise.all([
+			fetchRaceResult(fetch, raceId).then((raw) => mapLatestRaceResult(raceId, raw)),
+			Number.isFinite(seasonId)
+				? fetchSeasonCarPool(fetch, seasonId).then(mapSeasonCarInfo)
+				: Promise.resolve<SeasonCarInfo | undefined>(undefined)
+		]);
+
+		return { result, seasonId: params.seasonId, carInfo };
 	} catch (err) {
 		if (err instanceof ApiError) throw err;
 		throw new ApiError(`Odottamaton virhe kisatulosten haussa: ${String(err)}`);
