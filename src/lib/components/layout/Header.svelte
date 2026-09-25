@@ -6,6 +6,7 @@
 		{ href: '/kaudet', label: 'Kaudet' },
 		{ href: '/kuljettajat', label: 'Kuljettajat' },
 		{ href: '/radat', label: 'Radat' },
+		{ href: '/autot', label: 'Autot' },
 		{ href: '/tilastot', label: 'Tilastot' },
 		{ href: '/hall-of-fame', label: 'Hall of Fame' }
 	];

@@ -1211,9 +1211,21 @@ export interface Car {
 	notes?: string;
 }
 
+/**
+ * BUGIKORJAUS (25.9.2026, käyttäjän raportoima: `/autot/8` — ja mikä
+ * tahansa muukin id — antoi aina 404:n "autoa ei löytynyt", vaikka auto
+ * OLI sanakirjassa). Syy sama, tuttu kuvio muualtakin tästä API:sta
+ * (ks. esim. `RawCurrentSeasonResponse`/`RawDriverStanding`-kommentit
+ * types.ts:ssä): `RawCar.id` on TYYPITETTY `number`, mutta API antaa sen
+ * LIVENÄ MERKKIJONONA (esim. `"8"`). Ilman `Number(...)`-muunnosta
+ * `Car.id` päätyi merkkijonoksi, jolloin `autot/[carId]/+page.server.ts`:n
+ * `cars.find((c) => c.id === carId)` (numero) epäonnistui AINA hiljaisesti
+ * riippumatta siitä mikä id kokeiltiin — `===` ei koskaan täsmää
+ * merkkijonon ja numeron välillä JavaScriptissä.
+ */
 export function mapCar(raw: RawCar): Car {
 	return {
-		id: raw.id,
+		id: Number(raw.id),
 		name: raw.name,
 		manufacturer: raw.manufacturer ?? undefined,
 		class: raw.class ?? undefined,

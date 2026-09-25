@@ -374,8 +374,15 @@ export interface RawDriverCareerResponse {
  * kun poolissa on tasan yksi auto).
  */
 export interface RawCar {
-	id: number;
-	extId: number;
+	/**
+	 * HUOM (bugi löydetty tuotannosta 25.9.2026, ks. mappers.ts:n mapCar-
+	 * kommentti): tulee LIVENÄ MERKKIJONONA (esim. `"8"`) samaan tapaan
+	 * kuin `RawCurrentSeasonResponse.data.id`/`RawDriverStanding.id` —
+	 * tyyppi kuvaa tätä nyt rehellisesti, `mapCar` tekee `Number(...)`-
+	 * muunnoksen ennen käyttöä.
+	 */
+	id: number | string;
+	extId: number | string;
 	sim: string;
 	name: string;
 	manufacturer: string | null;
