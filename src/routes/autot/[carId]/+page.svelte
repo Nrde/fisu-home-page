@@ -11,6 +11,31 @@
 		if (!date) return undefined;
 		return new Intl.DateTimeFormat('fi-FI', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
 	}
+
+	/**
+	 * Simulaattoripilleri auton nimen vieressä (käyttäjän pyyntö 25.9.2026:
+	 * "just make it a pill ... style them so each simulator has its own
+	 * colors and they would be easily distinguishable" — pois aiemmasta
+	 * isosta "Simulaattori: X" -rivistä `.car-facts`-laatikossa). Tunnetut
+	 * lyhenteet saavat oman värinsä JA kokonaisen nimen (esim. "AC" ->
+	 * "Assetto Corsa") — tuntematon/uusi lyhenne näytetään SELLAISENAAN
+	 * neutraalilla värillä sen sijaan että arvattaisiin nimi tai piilotettaisiin
+	 * koko pilleri, koska ylläpito voi lisätä uusia simulaattoreita
+	 * autosanakirjaan milloin tahansa (`sim`-kenttä on vapaa merkkijono
+	 * API:ssa, ei rajattu enumiin).
+	 */
+	const SIM_INFO: Record<string, { label: string; accent: 'success' | 'info' | 'special' | 'warning' | 'danger' }> = {
+		AC: { label: 'Assetto Corsa', accent: 'success' },
+		ACC: { label: 'Assetto Corsa Competizione', accent: 'info' },
+		RF2: { label: 'rFactor 2', accent: 'special' },
+		IRACING: { label: 'iRacing', accent: 'warning' },
+		R3E: { label: 'RaceRoom', accent: 'danger' },
+		AMS2: { label: 'Automobilista 2', accent: 'success' }
+	};
+
+	function simBadge(sim: string): { label: string; accent: 'success' | 'info' | 'special' | 'warning' | 'danger' } {
+		return SIM_INFO[sim.toUpperCase()] ?? { label: sim, accent: 'info' };
+	}
 </script>
 
 <svelte:head>
@@ -21,23 +46,23 @@
 <section class="page-grid section">
 	<a href="/autot" class="link back-link">← Kaikki autot</a>
 
-	<h1 class="car-name">{car.name}</h1>
+	<div class="car-heading">
+		<h1 class="car-name">{car.name}</h1>
+		{#if car.sim}
+			{@const sim = simBadge(car.sim)}
+			<span class="car-sim-badge" data-accent={sim.accent}>{sim.label}</span>
+		{/if}
+	</div>
 	{#if car.manufacturer}
 		<p class="car-manufacturer">{car.manufacturer}</p>
 	{/if}
 
-	{#if car.class || car.sim || car.notes}
+	{#if car.class || car.notes}
 		<div class="car-facts">
 			{#if car.class}
 				<p class="car-facts__item">
 					<span class="car-facts__label">Luokka</span>
 					<span class="car-facts__value">{car.class}</span>
-				</p>
-			{/if}
-			{#if car.sim}
-				<p class="car-facts__item">
-					<span class="car-facts__label">Simulaattori</span>
-					<span class="car-facts__value">{car.sim}</span>
 				</p>
 			{/if}
 			{#if car.notes}
@@ -100,7 +125,12 @@
 </section>
 
 <style>
+	/* `container-type` tähän (ei `.car-heading`:iin itseensä) — elementti ei
+	   voi @container-kysyä OMAA kokoaan, ks. radat/[trackid]/+page.svelte:n
+	   `.section`-kommentti samasta periaatteesta. Auton nimen ja simulaattori-
+	   pillerin fluidit koot alla viittaavat tähän. */
 	.section {
+		container-type: inline-size;
 		padding-block: var(--space-12);
 	}
 
@@ -109,10 +139,72 @@
 		margin-bottom: var(--space-6);
 	}
 
+	/*
+	 * Nimi + simulaattoripilleri SAMALLA rivillä, pystysuunnassa keskitettynä
+	 * (käyttäjän pyyntö 25.9.2026) — `flex-wrap: wrap` sallii pillerin
+	 * TIPPUA nimen ALLE kapealla mobiililla sen sijaan että se puristaisi
+	 * nimeä tai ylivuotaisi, `align-items: baseline` pitää molemmat samalla
+	 * tekstiviivalla kun ne MAHTUVAT samalle riville.
+	 */
+	.car-heading {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		column-gap: var(--space-3);
+		row-gap: var(--space-1);
+	}
+
 	.car-name {
-		font-size: var(--font-size-2xl);
+		/* Fluidi kokoa suhteessa `.section`:in leveyteen (cqi) — kutistuu
+		   kapealla mobiililla, jotta nimi + pilleri mahtuvat samalle riville
+		   pidempään ennen kuin pilleri tippuu omalle rivilleen. */
+		font-size: clamp(1.4rem, 1.1rem + 2.4cqi, 2.25rem);
 		font-weight: 800;
 		letter-spacing: -0.01em;
+	}
+
+	/*
+	 * Simulaattoripilleri — sama "pilli, oma väri per arvo" -resepti kuin
+	 * TrackCard.svelte:n `.track-card__stat`:lla (turns/built saavat omat
+	 * värinsä siellä), sovellettuna `data-accent`:iin (sama nimeämiskäytäntö
+	 * kuin Badge.svelte/ListRow:ssa) SIM_INFO-taulukon (yllä script-lohkossa)
+	 * antaman aksentin mukaan — eri simulaattorit erottuvat värillä TOISISTAAN
+	 * ensisilmäyksellä sen sijaan että kaikki olisivat samaa harmaata "Simulaattori:
+	 * X" -tekstiä kuten aiemmin `.car-facts`-laatikossa.
+	 */
+	.car-sim-badge {
+		--accent: var(--color-info);
+
+		flex-shrink: 0;
+		display: inline-flex;
+		align-items: center;
+		padding: 0.25em 0.85em;
+		border-radius: var(--radius-full);
+		background: color-mix(in oklch, var(--accent) 16%, var(--color-surface));
+		border: 1px solid color-mix(in oklch, var(--accent) 32%, transparent);
+		color: var(--accent);
+		/* Fluidi, mutta selvästi PIENEMPI kuin nimi — pilleri on lisätieto,
+		   ei kilpaile nimen kanssa huomiosta. Riittävän pieni ala-arvo (0.7rem)
+		   ettei se työnnä nimeä pois riviltä kapeimmillakaan mobiilileveyksillä. */
+		font-size: clamp(0.7rem, 0.62rem + 0.5cqi, 0.85rem);
+		font-weight: 700;
+		white-space: nowrap;
+	}
+
+	.car-sim-badge[data-accent='success'] {
+		--accent: var(--color-success);
+	}
+	.car-sim-badge[data-accent='danger'] {
+		--accent: var(--color-danger);
+	}
+	.car-sim-badge[data-accent='warning'] {
+		--accent: var(--color-warning);
+	}
+	.car-sim-badge[data-accent='info'] {
+		--accent: var(--color-info);
+	}
+	.car-sim-badge[data-accent='special'] {
+		--accent: var(--color-special);
 	}
 
 	.car-manufacturer {
