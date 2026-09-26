@@ -147,6 +147,35 @@ export function fetchSeasonRaces(fetchFn: typeof fetch, seasonId: number) {
 }
 
 /**
+ * Auto-dataa sisältävien vastausten skeemaversio — API-tiimi lisäsi tämän
+ * (26.9.2026, ei vielä tuotannossa) suoraan meidän palautteemme perusteella
+ * kahdesta saman päivän yllättävästä muotomuutoksesta (`cars`/`poolCarIds`/
+ * `carIds`, ks. API-TODO.md:n historia). Tämä koodi on kirjoitettu TÄTÄ
+ * versiota vastaan — jos API joskus antaa toisen luvun, `warnIfUnknownCars
+ * SchemaVersion` (alla) varoittaa SELVÄSTI konsolissa/palvelinlokissa sen
+ * sijaan että muutos huomattaisiin vasta 500:sta tai `NaN`-avaimesta.
+ */
+const CARS_SCHEMA_VERSION = 1;
+
+/**
+ * VAROITTAA (ei koskaan heitä virhettä — auto-data on tällä sivustolla
+ * aina lisätietoa, ei pääsisältöä, ks. esim. `/kaudet/[seasonId]/kilpailut/
+ * [raceId]/+page.server.ts`:n try/catch-periaate) jos vastauksen
+ * `carsSchemaVersion` ei täsmää tämän koodin olettamaan versioon. HUOM:
+ * lokitetaan AINA, ei vain dev-tilassa (toisin kuin `apiFetch`:n rutiini-
+ * lokit) — tämä EI ole rutiinidebugia vaan poikkeustilanne joka kannattaa
+ * nähdä myös tuotannon palvelinlokeista ennen kuin käyttäjä ehtii
+ * raportoida rikkinäisen sivun.
+ */
+function warnIfUnknownCarsSchemaVersion(version: number, endpoint: string): void {
+	if (version !== CARS_SCHEMA_VERSION) {
+		console.warn(
+			`[api] ${endpoint}: carsSchemaVersion on ${version}, mutta client.ts/mappers.ts on kirjoitettu versiota ${CARS_SCHEMA_VERSION} vastaan — auto-dataa sisältävien kenttien muoto on todennäköisesti muuttunut, tarkista types.ts:n RawSeasonRacesResponse/RawRaceCarsResponse ja mappers.ts:n mapCar/mapRaceCars ennen kuin luotat tämän sivun autotietoihin.`
+		);
+	}
+}
+
+/**
  * Sama endpoint kuin `fetchSeasonRaces`, mutta palauttaa KOKO kääreen
  * `carDetails`-sanakirjan takia (ks. types.ts:n `RawSeasonRacesResponse`-
  * kommentti) — `apiFetchEnvelope` hukkaisi sen (purkaa vain `.data`:n).
@@ -155,8 +184,10 @@ export function fetchSeasonRaces(fetchFn: typeof fetch, seasonId: number) {
  * radat/[trackid], autot/[carId]:n kausihistoria) eivät tarvitse
  * `carDetails`:ia, joten niitä ei ole syytä muuttaa käyttämään tätä.
  */
-export function fetchSeasonRacesWithCarDetails(fetchFn: typeof fetch, seasonId: number) {
-	return apiFetch<RawSeasonRacesResponse>(fetchFn, `/races/${seasonId}`);
+export async function fetchSeasonRacesWithCarDetails(fetchFn: typeof fetch, seasonId: number) {
+	const response = await apiFetch<RawSeasonRacesResponse>(fetchFn, `/races/${seasonId}`);
+	warnIfUnknownCarsSchemaVersion(response.carsSchemaVersion, `/races/${seasonId}`);
+	return response;
 }
 
 /** Hakee kauden AJETTUJEN kisojen id:t (paljas taulukko, ei olioita). */
@@ -265,10 +296,12 @@ export function fetchCarDictionary(fetchFn: typeof fetch) {
  * Hakee kisan koko autoruudukon — UUSI 26.9.2026, `car_assignments`-taulu
  * tuli käyttöön (ks. types.ts:n `RawRaceCarsResponse`-kommentti neli-
  * tasoisesta ratkaisujärjestyksestä). HUOM: KOKO kääre (success+data+
- * raceWideCar), EI `apiFetchEnvelope`, koska `raceWideCar` on `data`:n
- * SISARUSKENTTÄ — sama periaate kuin `fetchHallOfFame`/`fetchDriverCareer`
+ * carsSchemaVersion), EI `apiFetchEnvelope`, koska nämä ovat `data`:n
+ * SISARUSKENTTIÄ — sama periaate kuin `fetchHallOfFame`/`fetchDriverCareer`
  * -funktioissa.
  */
-export function fetchRaceCars(fetchFn: typeof fetch, seasonId: number, raceId: number) {
-	return apiFetch<RawRaceCarsResponse>(fetchFn, `/cars/race/${seasonId}/${raceId}`);
+export async function fetchRaceCars(fetchFn: typeof fetch, seasonId: number, raceId: number) {
+	const response = await apiFetch<RawRaceCarsResponse>(fetchFn, `/cars/race/${seasonId}/${raceId}`);
+	warnIfUnknownCarsSchemaVersion(response.carsSchemaVersion, `/cars/race/${seasonId}/${raceId}`);
+	return response;
 }

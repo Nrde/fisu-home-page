@@ -31,7 +31,8 @@
 		metaSecondary,
 		metaSecondaryAccent = 'muted',
 		badge,
-		nameTrailing
+		nameTrailing,
+		extra
 	}: {
 		position: number;
 		/**
@@ -72,6 +73,16 @@
 		 * RaceResultRow käyttää tätä sijoitusmuutos-ilmaisimeen (▲/▼/─).
 		 */
 		nameTrailing?: Snippet;
+		/**
+		 * OMALLE, KOKO LEVEYDEN riville meta/metaSecondary-rivin ALLE —
+		 * UUSI 26.9.2026, käyttäjän pyyntö (RaceResultRow: kuljettajan auto
+		 * omalle rivilleen, koska pitkä automerkki+malli-nimi rikkoi
+		 * layoutin kun se oli aiemmin ahdettu `metaSecondary`-sarakkeeseen
+		 * PB-ajan kanssa). EI jaettu kahteen sarakkeeseen kuten meta/
+		 * metaSecondary — tarkoitettu YHDELLE, mahdollisesti pitkälle
+		 * tekstipätkälle jolla ei ole vastinparia rivin toisessa reunassa.
+		 */
+		extra?: Snippet;
 	} = $props();
 </script>
 
@@ -98,6 +109,9 @@
 						</span>
 					{/if}
 				</div>
+			{/if}
+			{#if extra}
+				<div class="list-row__row list-row__row--extra">{@render extra()}</div>
 			{/if}
 		</div>
 		{#if badge}
@@ -312,6 +326,23 @@
 	 */
 	.list-row__row--secondary {
 		justify-content: space-between;
+	}
+
+	/*
+	 * `extra`-rivi (UUSI 26.9.2026) — sama tyhjän piilotus kuin
+	 * `.list-row__name-trailing:empty`:ssä alempana: snippet-propsi ON
+	 * "totta" aina kun kutsuja on kirjoittanut `{#snippet extra()}...{/snippet}`
+	 * -lohkon, VAIKKA sen SISÄLTÖ olisi ehdollisesti tyhjä (esim.
+	 * RaceResultRow'n auto puuttuu tältä riviltä) — ilman `:empty`-sääntöä
+	 * jäisi näkyviin tyhjä, mutta silti tilaa vievä rivi.
+	 */
+	.list-row__row--extra {
+		color: var(--color-text-faint);
+		font-size: clamp(0.8rem, 0.7rem + 1cqi, 0.95rem);
+	}
+
+	.list-row__row--extra:empty {
+		display: none;
 	}
 
 	.list-row__name {

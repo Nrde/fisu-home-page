@@ -221,6 +221,16 @@ export interface RawSeasonRacesResponse {
 	count: number;
 	poolCarIds: number[];
 	cars: Record<string, RawCar>;
+	/**
+	 * UUSI (ei vielä tuotannossa 26.9.2026) — API-tiimin oma vastaus meidän
+	 * palautteeseemme kahdesta saman päivän muotomuutoksesta: kokonaisluku
+	 * joka kasvaa VAIN kun `cars`/`poolCarIds`/`carIds`-kenttien MUOTO
+	 * muuttuu taas, jotta tuleva muutos on arvo jota vasten voi TARKISTAA
+	 * sen sijaan että se huomataan vasta 500:sta/NaN:sta tuotannossa (ks.
+	 * API-TODO.md:n historia). `client.ts`:n `fetchSeasonRacesWithCarDetails`
+	 * varoittaa jos tämä poikkeaa `CARS_SCHEMA_VERSION`:sta.
+	 */
+	carsSchemaVersion: number;
 }
 
 /**
@@ -503,6 +513,8 @@ export interface RawRaceCarsData {
 export interface RawRaceCarsResponse {
 	success: boolean;
 	data: RawRaceCarsData | null;
+	/** UUSI (ei vielä tuotannossa 26.9.2026) — sama mekanismi kuin `RawSeasonRacesResponse.carsSchemaVersion`, ks. sen kommentti. */
+	carsSchemaVersion: number;
 }
 
 /**

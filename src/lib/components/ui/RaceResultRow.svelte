@@ -22,6 +22,15 @@
 	 * - Voittajan (position 1) kokonaisaikaa EI näytetä, koska API ei
 	 *   sitä tarjoa (vain muiden ero siihen) — tiedossa oleva rajoitus,
 	 *   ks. mappers.ts:n RaceResultEntry.gapDisplay-kommentti.
+	 * - `car` (UUSI 26.9.2026) on OMALLA rivillään ListRow'n `extra`-
+	 *   snipetissä, EI ahdettu `metaSecondary`-sarakkeeseen PB-ajan
+	 *   kanssa — käyttäjän pyyntö samana päivänä kun auto lisättiin
+	 *   riville: "the pb time and gap to winner should be on the same
+	 *   line, and the car on the next line on its own [...] the car name
+	 *   can be too long and it messes up the layout then". `gapDisplay`
+	 *   (`meta`) ja `bestLapTime` (`metaSecondary`) pysyvät SAMALLA
+	 *   rivillä kuin ennenkin (ListRow:n oma `list-row__row--secondary`),
+	 *   auto omalla koko levyisellä rivillään sen alla.
 	 */
 	import ListRow from './ListRow.svelte';
 
@@ -49,7 +58,12 @@
 		 * Tämän kuljettajan ratkaistu auto tässä kisassa — UUSI 26.9.2026,
 		 * `car_assignments` käyttöön (ks. mappers.ts:n `resolveDriverCar`).
 		 * `undefined` on laillinen tila (ei ratkaisua millään neljästä
-		 * tasosta) — rivi näyttää tällöin vain PB:n, ei tyhjää "auto: -" -tekstiä.
+		 * tasosta) — rivi näyttää tällöin vain aikaerot, ei tyhjää
+		 * "auto: -" -tekstiä eikä tyhjää ylimääräistä riviä (ks. ListRow.svelte:n
+		 * `.list-row__row--extra:empty`-sääntö). Näytetään OMALLA rivillään
+		 * (ks. yllä oleva komponenttikommentti) koska auton merkki+malli voi
+		 * olla pitkä ja rikkoisi layoutin jos se olisi samalla rivillä PB-ajan
+		 * kanssa.
 		 */
 		carName?: string;
 		/** Ajoi KOKO KISAN nopeimman kierroksen (eri asia kuin oma bestLapTime) */
@@ -99,9 +113,8 @@
 		{#if bestLapTime}
 			PB: {bestLapTime}
 		{/if}
-		{#if bestLapTime && carName}
-			·
-		{/if}
+	{/snippet}
+	{#snippet extra()}
 		{#if carName}
 			{carName}
 		{/if}
