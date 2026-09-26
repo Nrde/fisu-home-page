@@ -195,6 +195,18 @@ export interface RawRaceListEntry {
 	trackId: string | null;
 	/** UUSI 26.9.2026 — ks. yllä oleva kommentti. Ratkaise täydet autot `RawSeasonRacesResponse.cars`:n kautta, EI odota täyttä oliota tässä. */
 	carIds?: number[];
+	/**
+	 * UUSI 26.9.2026, käyttäjän pyynnöstä ("winners total time... where all
+	 * the others have the difference to the winner"): voittajan kokonaisaika
+	 * TÄSSÄ kisassa, VALMIIKSI muotoiltuna (esim. "45:41.097" tai
+	 * "1:00:15.575") — sama muoto kuin `formatSecondsAsClock`:n tuottama
+	 * ("M:SS.sss"/"H:MM:SS.sss"), mappers.ts EI siis muotoile tätä uudelleen,
+	 * vain välittää sellaisenaan. `raceTimeMs` on sama arvo millisekunteina —
+	 * emme käytä sitä (valmis merkkijono riittää näyttöön), mutta dokumentoitu
+	 * tässä koska se on osa samaa vastausta.
+	 */
+	raceTime?: string;
+	raceTimeMs?: number;
 }
 
 export type RawRaceListResponse = RawRaceListEntry[];
@@ -270,6 +282,14 @@ export interface RawRaceResultResponse {
 		seasonname: string;
 		trackId: string | null;
 		drivers: Record<string, RawRaceResultDriver>;
+		/**
+		 * UUSI 26.9.2026, käyttäjän vahvistama — SAMA kenttä ja muoto kuin
+		 * `RawRaceListEntry.raceTime`/`raceTimeMs` (`/races/{season}`:ssa),
+		 * täällä vain `data`:n sisarkenttänä eikä per-kisa-taulukon rivillä.
+		 * Voittajan kokonaisaika, VALMIIKSI muotoiltuna ("45:41.097" tms.).
+		 */
+		raceTime?: string;
+		raceTimeMs?: number;
 	};
 }
 

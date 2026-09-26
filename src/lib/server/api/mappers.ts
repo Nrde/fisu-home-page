@@ -383,6 +383,17 @@ export interface LatestRaceResult {
 	 */
 	seasonName: string;
 	results: RaceResultEntry[];
+	/**
+	 * Voittajan kokonaisaika tässä kisassa, VALMIIKSI muotoiltuna — UUSI
+	 * 26.9.2026, käyttäjän pyynnöstä ("winners total time... where all
+	 * the others have the difference to the winner"). Pass-through
+	 * `response.data.raceTime`:sta, EI muotoilla uudelleen (ks. types.ts:n
+	 * kommentti — API antaa jo "M:SS.sss"/"H:MM:SS.sss"-muodon). `undefined`
+	 * jos API ei (vielä) antanut tätä kenttää tälle kisalle — sivun pitää
+	 * silloin näyttää tyhjä kohta voittajan rivillä kuten ennenkin, EI
+	 * arvata tai näyttää virhettä.
+	 */
+	raceTime?: string;
 }
 
 /**
@@ -509,7 +520,8 @@ export function mapLatestRaceResult(raceId: number, response: RawRaceResultRespo
 		trackName: response.data.racename,
 		trackId: response.data.trackId ?? undefined,
 		seasonName: response.data.seasonname,
-		results: computeDisplayPositions(results)
+		results: computeDisplayPositions(results),
+		raceTime: response.data.raceTime ?? undefined
 	};
 }
 

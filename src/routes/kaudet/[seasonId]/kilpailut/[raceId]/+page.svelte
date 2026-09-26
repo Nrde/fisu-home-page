@@ -68,6 +68,11 @@
 			{ value: 'positionChange', label: 'Sijoja voitettu/hävitty' }
 		]}
 	/>
+	<!-- Käyttäjän pyyntö 26.9.2026: voittajan rivillä (position === 1) näytetään nyt
+	     `gapDisplay`-paikalla auton kokonaisaika (`raceTime`) sen sijaan että paikka
+	     jäisi tyhjäksi — muille kuljettajille sama paikka näyttää edelleen eron
+	     voittajaan (`result.gapDisplay`), ks. mappers.ts:n `LatestRaceResult.
+	     raceTime`-kommentti. -->
 	<!-- Käyttäjän pyyntö 26.9.2026: leveämmät kortit (320px -> 360px) + pienempi
 	     ruudukon väli (data-gap 3 -> 2) — pitkä nimi ("Lucky like Fauntleroy")
 	     ahtautui DNF/sijoitusmuutos-badgen kanssa kapeammilla korteilla, ks.
@@ -79,7 +84,7 @@
 					position={result.position}
 					displayPosition={result.displayPosition}
 					name={result.name}
-					gapDisplay={result.gapDisplay}
+					gapDisplay={result.position === 1 ? data.result.raceTime : result.gapDisplay}
 					bestLapTime={result.bestLapTime}
 					carName={result.car?.name}
 					fastestLap={result.fastestLap}

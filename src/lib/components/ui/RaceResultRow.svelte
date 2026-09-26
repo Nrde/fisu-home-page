@@ -50,7 +50,13 @@
 		/** "=" jos jakaa sijoituksen edellisen rivin kanssa, muuten position merkkijonona — ks. mappers.ts:n computeDisplayPositions. */
 		displayPosition: string;
 		name: string;
-		/** Valmiiksi muotoiltu ero kärkeen, esim. "+20.857" tai "+1 kierros" — undefined voittajalle */
+		/**
+		 * Valmiiksi muotoiltu ero kärkeen, esim. "+20.857" tai "+1 kierros".
+		 * PÄIVITYS (26.9.2026): kutsuja (+page.svelte) syöttää tähän VOITTAJAN
+		 * rivillä nyt auton KOKONAISAJAN ("45:41.097", ei "+"-etuliitettä) sen
+		 * sijaan että tämä jäisi `undefined`:ksi — komponentti itse ei tee
+		 * eroa näiden kahden merkityksen välillä, näyttää vain mitä saa.
+		 */
 		gapDisplay?: string;
 		/** Kuljettajan oma paras kierrosaika tässä kisassa, esim. "1:27.480" */
 		bestLapTime?: string;
