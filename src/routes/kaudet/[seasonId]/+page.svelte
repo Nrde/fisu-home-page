@@ -115,6 +115,9 @@
 						{race.trackName}
 					{/if}
 				</span>
+				{#if race.cars.length > 0}
+					<span class="race-list__cars">{race.cars.map((car) => car.name).join(', ')}</span>
+				{/if}
 				{#if formatDate(race.date)}
 					<span class="race-list__date">{formatDate(race.date)}</span>
 				{/if}
@@ -201,6 +204,19 @@
 	.race-list__track {
 		font-weight: 700;
 		flex: 1;
+	}
+
+	/*
+	 * TÄLLE kisalle erikseen kirjatut autot (UUSI 26.9.2026,
+	 * `car_assignments` käyttöön, ks. mappers.ts:n `SeasonRaceListEntry.
+	 * cars`-kommentti) — eri asia kuin ylälaidan `<CarList>` (koko kauden
+	 * pooli). Näytetään VAIN kun tälle kisalle on jotain kisakohtaista
+	 * tietoa, ei koskaan tyhjänä/"-"-merkkinä.
+	 */
+	.race-list__cars {
+		color: var(--color-text-faint);
+		font-size: var(--font-size-sm);
+		font-style: italic;
 	}
 
 	.race-list__date {

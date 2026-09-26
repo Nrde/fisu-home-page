@@ -162,6 +162,17 @@ export interface RawCurrentSeasonResponse {
  * pelkkänä vapaana tekstinä ei riittänyt luotettavaan linkitykseen) —
  * käytä AINA `trackId`:tä kun se on olemassa, `track`-teksti on nyt
  * VAIN näyttöä varten (kisakalenterin rivin otsikko).
+ *
+ * PÄIVITYS (26.9.2026, `car_assignments` tuli käyttöön): jokaisella
+ * kisalla on nyt OMA `cars`-kenttänsä — TÄLLE KISALLE ERIKSEEN kirjatut
+ * autot, eri asia kuin kauden koko poolista (`RawCarListResponse`,
+ * `/cars/season/{season}`). Backendin oma huomautus: TYHJÄ taulukko EI
+ * tarkoita "ei autoa ajettu" — se voi yksinkertaisesti tarkoittaa ettei
+ * KENENKÄÄN kuljettajakohtaista/kisakohtaista tietoa ole vielä syötetty
+ * tälle kisalle (kuljettajat voivat silti käyttää omaa kausioletustaan,
+ * joka ei ole sidottu tähän `race_id`:hen) — EI siis kohdella "ei
+ * tietoa"/N/A-tilana, vaan "ei kisakohtaista näytettävää, näytä sen
+ * sijaan kauden pooli jos jotain halutaan näyttää".
  */
 export interface RawRaceListEntry {
 	id: number;
@@ -173,6 +184,8 @@ export interface RawRaceListEntry {
 	time: string;
 	track: string;
 	trackId: string | null;
+	/** UUSI 26.9.2026 — ks. yllä oleva kommentti. Valinnainen: vanhemmat backend-versiot eivät vielä antaneet tätä kenttää. */
+	cars?: RawCar[];
 }
 
 export type RawRaceListResponse = RawRaceListEntry[];
@@ -364,14 +377,22 @@ export interface RawDriverCareerResponse {
 
 /**
  * GET /cars/season/{season} — kauden autopooli (mitkä autot ovat
- * käytössä TÄLLÄ kaudella), ks. API-kenttäkartan "Autot"-kohta
- * (25.9.2026). Käsin ylläpidetty sanakirja (`cars`-taulu) — `manufacturer`/
- * `class`/`notes` ovat usein `null`, täytetään ylläpidon toimesta ajan
- * myötä. HUOM: TÄMÄ endpoint EI kerro KUKA kuljettaja ajoi millä autolla
- * — se vaatisi `car_assignments`-taulun, joka on TOISTAISEKSI tyhjä
- * (ks. client.ts:n `fetchSeasonCarPool`-kommentti ja mappers.ts:n
- * `mapSeasonCarInfo`, joka päättelee per-kuljettaja-tiedon VAIN silloin
- * kun poolissa on tasan yksi auto).
+ * YLIPÄÄTÄÄN käytössä TÄLLÄ kaudella, ei kuka ajoi millä), ks.
+ * API-kenttäkartan "Autot"-kohta (25.9.2026). Käsin ylläpidetty sanakirja
+ * (`cars`-taulu) — `manufacturer`/`class`/`notes` ovat usein `null`,
+ * täytetään ylläpidon toimesta ajan myötä.
+ *
+ * PÄIVITYS (26.9.2026): `car_assignments`-taulu (KUKA ajoi millä) on nyt
+ * KÄYTÖSSÄ — ei enää tyhjä. Per-kuljettaja/per-kisa ratkaisu haetaan
+ * kuitenkin ERI endpointeista (`/cars/race/{season}/{race}`, ks.
+ * `RawRaceCarsResponse` alla, ja yksittäiselle kuljettajalle
+ * `/cars/{season}/{driver}/{race}`) — TÄMÄ pooliendpoint pysyy ennallaan,
+ * eikä koskaan kerro per-kuljettaja-tietoa. `mappers.ts`:n
+ * `matchCarSeasons`/`resolveDriverCar` päättelevät per-kuljettaja-tiedon
+ * poolista VAIN silloin kun se on TASAN yksi auto (taso 4 neljästä
+ * ratkaisutasosta, ks. `RaceCarResolution`-kommentti) — muissa
+ * tapauksissa poolia käytetään vain "mitä autoja tällä kaudella on
+ * ylipäätään" -näyttöön.
  */
 export interface RawCar {
 	/**
@@ -391,6 +412,37 @@ export interface RawCar {
 }
 
 export type RawCarListResponse = RawCar[];
+
+/**
+ * GET /cars/race/{season}/{race} — UUSI 26.9.2026, `car_assignments`
+ * käyttöönoton myötä. "Koko ruudukko" -näkymä: `data` on tälle KISALLE
+ * jo ratkaistut per-kuljettaja-rivit (tasot 1-2 nelitasoisesta
+ * ratkaisujärjestyksestä, ks. mappers.ts:n `RaceCarResolution`-kommentti:
+ * kuljettaja+kisa-poikkeus tai kuljettajan oma kausioletus), `raceWideCar`
+ * on koko kisan VARAOSA-auto (taso 3) jota sovelletaan KENELLE TAHANSA
+ * kuljettajalle joka EI ole `data`-listalla — `null` jos tälle kisalle ei
+ * ole asetettu varaosa-autoa. HUOM: `raceWideCar` on vastauksen JUURESSA
+ * `data`:n SISARUSKENTTÄNÄ (ei sen sisällä) — sama kääre-poikkeus kuin
+ * `RawHallOfFameResponse`:n `intro`:ssa, joten `client.ts`:n
+ * `fetchRaceCars` käyttää suoraa `apiFetch`ia, ei `apiFetchEnvelope`ia.
+ *
+ * Taso 4 (kauden poolin ainoa auto) EI sisälly tähän vastaukseen —
+ * backend soveltaa sen vain yksittäisen kuljettajan
+ * `/cars/{season}/{driver}/{race}`-endpointilla. `mappers.ts`:n
+ * `resolveDriverCar` soveltaa tason 4 itse tämän ruudukon päälle.
+ */
+export interface RawRaceCarAssignment {
+	driverId: number | string;
+	carId: number | string;
+	name: string;
+	sim: string;
+}
+
+export interface RawRaceCarsResponse {
+	success: boolean;
+	data: RawRaceCarAssignment[];
+	raceWideCar: RawCar | null;
+}
 
 /**
  * Hall of Fame -rivi — API-kenttäkartta 22.9.2026 (korjattu versio:

@@ -77,6 +77,7 @@
 					name={result.name}
 					gapDisplay={result.gapDisplay}
 					bestLapTime={result.bestLapTime}
+					carName={result.car?.name}
 					fastestLap={result.fastestLap}
 					featured={result.position === 1}
 					positionChange={result.positionChange}

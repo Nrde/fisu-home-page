@@ -4,21 +4,38 @@
  * id:tä, kisa-id yksin riittää) — alun perin se oli mukana URL:ssa VAIN
  * "← Takaisin kauteen" -breadcrumb-linkkiä varten (ks. +page.svelte).
  *
- * UUSI 25.9.2026: `seasonId`:tä käytetään NYT myös kauden autopoolin
- * hakuun (`/cars/season/{seasonId}`) — jos poolissa on tasan yksi auto,
- * se koskee JOKAISTA tämän kauden kisaa (myös tätä), joten kisasivukin
- * voi näyttää sen ilman `car_assignments`-taulua (joka on toistaiseksi
- * tyhjä). Näytetään aina KOKO pooli klikattavina linkkeinä (ks. mappers.ts:n
- * Car-kommentti ja `<CarList>`-komponentti) — kun poolissa sattuu olemaan
- * vain yksi auto, tämä näyttää automaattisesti vain sen yhden. `seasonId`
+ * UUSI 25.9.2026: `seasonId`:tä käytetään myös kauden autopoolin hakuun
+ * (`/cars/season/{seasonId}`) — käytetään NYT (26.9.2026) VAIN tason 4
+ * fallbackina (ks. mappers.ts:n `RaceCarResolution`-kommentti), ei enää
+ * ainoana autotietona.
+ *
+ * PÄIVITYS (26.9.2026, `car_assignments` tuli käyttöön): sivu hakee nyt
+ * MYÖS `/cars/race/{season}/{race}` (`fetchRaceCars`) — tälle KISALLE jo
+ * ratkaistut per-kuljettaja autot + koko kisan varaosa-auto. Jokaiselle
+ * tulosriville liitetään `resolveDriverCar`:n ratkaisema auto
+ * (`attachRaceCars`), ja sivun ylälaidan `CarList` näyttää tämän kisan
+ * TODELLISET käytetyt autot (`raceCarsUnion`) — vasta jos NIITÄ ei ole
+ * yhtään (ei tarkoita "ei autoa", ks. types.ts:n `RawRaceListEntry.cars`-
+ * kommentti), pudotaan takaisin kauden koko pooliin, käyttäjän ohjeen
+ * mukaisesti ("fall back to the season-level pool display"). `seasonId`
  * EI tässä ole yhtä luotettavasti validoitu kuin `raceId` (ei aiemmin
  * tarvinnut olla, ks. yllä) — jos se ei jostain syystä olisikaan kelvollinen
- * numero, autopoolin haku ohitetaan hiljaisesti eikä kaadeta koko sivua sen
- * takia, koska autotieto on tällä sivulla lisätietoa, ei pääsisältöä.
+ * numero, molemmat autohaut ohitetaan hiljaisesti eikä kaadeta koko sivua
+ * sen takia, koska autotieto on tällä sivulla lisätietoa, ei pääsisältöä.
  */
-import { ApiError, fetchRaceResult, fetchSeasonCarPool } from '#lib/server/api/client.ts';
-import { mapCars, mapLatestRaceResult, type Car } from '#lib/server/api/mappers.ts';
+import { ApiError, fetchRaceCars, fetchRaceResult, fetchSeasonCarPool } from '#lib/server/api/client.ts';
+import {
+	attachRaceCars,
+	mapCars,
+	mapLatestRaceResult,
+	mapRaceCars,
+	raceCarsUnion,
+	type Car,
+	type RaceCarResolution
+} from '#lib/server/api/mappers.ts';
 import type { PageServerLoad } from './$types';
+
+const EMPTY_RACE_CAR_RESOLUTION: RaceCarResolution = { byDriverId: new Map() };
 
 export const load: PageServerLoad = async ({ params, fetch }) => {
 	const raceId = Number(params.raceId);
@@ -28,15 +45,20 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 
 	try {
 		const seasonId = Number(params.seasonId);
+		const hasSeasonId = Number.isFinite(seasonId);
 
-		const [result, cars] = await Promise.all([
-			fetchRaceResult(fetch, raceId).then((raw) => mapLatestRaceResult(raceId, raw)),
-			Number.isFinite(seasonId)
-				? fetchSeasonCarPool(fetch, seasonId).then(mapCars)
-				: Promise.resolve<Car[]>([])
+		const [rawResult, seasonPool, raceCarResolution] = await Promise.all([
+			fetchRaceResult(fetch, raceId),
+			hasSeasonId ? fetchSeasonCarPool(fetch, seasonId).then(mapCars) : Promise.resolve<Car[]>([]),
+			hasSeasonId
+				? fetchRaceCars(fetch, seasonId, raceId).then(mapRaceCars)
+				: Promise.resolve(EMPTY_RACE_CAR_RESOLUTION)
 		]);
 
-		return { result, seasonId: params.seasonId, cars };
+		const result = attachRaceCars(mapLatestRaceResult(raceId, rawResult), raceCarResolution, seasonPool);
+		const raceCars = raceCarsUnion(raceCarResolution);
+
+		return { result, seasonId: params.seasonId, cars: raceCars.length > 0 ? raceCars : seasonPool };
 	} catch (err) {
 		if (err instanceof ApiError) throw err;
 		throw new ApiError(`Odottamaton virhe kisatulosten haussa: ${String(err)}`);

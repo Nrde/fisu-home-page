@@ -31,6 +31,7 @@
 		name,
 		gapDisplay,
 		bestLapTime,
+		carName,
 		fastestLap = false,
 		featured = false,
 		positionChange,
@@ -44,6 +45,13 @@
 		gapDisplay?: string;
 		/** Kuljettajan oma paras kierrosaika tässä kisassa, esim. "1:27.480" */
 		bestLapTime?: string;
+		/**
+		 * Tämän kuljettajan ratkaistu auto tässä kisassa — UUSI 26.9.2026,
+		 * `car_assignments` käyttöön (ks. mappers.ts:n `resolveDriverCar`).
+		 * `undefined` on laillinen tila (ei ratkaisua millään neljästä
+		 * tasosta) — rivi näyttää tällöin vain PB:n, ei tyhjää "auto: -" -tekstiä.
+		 */
+		carName?: string;
 		/** Ajoi KOKO KISAN nopeimman kierroksen (eri asia kuin oma bestLapTime) */
 		fastestLap?: boolean;
 		featured?: boolean;
@@ -90,6 +98,12 @@
 	{#snippet metaSecondary()}
 		{#if bestLapTime}
 			PB: {bestLapTime}
+		{/if}
+		{#if bestLapTime && carName}
+			·
+		{/if}
+		{#if carName}
+			{carName}
 		{/if}
 	{/snippet}
 	{#snippet nameTrailing()}

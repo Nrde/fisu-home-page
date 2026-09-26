@@ -20,6 +20,7 @@ import type {
 	RawHallOfFameResponse,
 	RawLeaderboardEntry,
 	RawOrganiserSummaryResponse,
+	RawRaceCarsResponse,
 	RawRaceListEntry,
 	RawRaceListResponse,
 	RawRaceResultDriver,
@@ -349,6 +350,16 @@ export interface RaceResultEntry extends WithDisplayPosition {
 	 * DNF ei siis piilota niitä, vain LISÄÄ visuaalisen merkinnän.
 	 */
 	dnf: boolean;
+	/**
+	 * UUSI 26.9.2026 (`car_assignments` käyttöön): tämän kuljettajan
+	 * ratkaistu auto TÄSSÄ kisassa, ks. `RaceCarResolution`/`resolveDriverCar`
+	 * -kommentit. `undefined` on LAILLINEN, odotettu tila (ei mikään
+	 * ratkaisutaso osunut) — näytetään "auto ei tiedossa", ei virhettä.
+	 * Ei tule `mapLatestRaceResult`:sta suoraan (se ei tiedä autoista
+	 * mitään) — `attachRaceCars` liittää tämän erikseen +page.server.ts:n
+	 * pyynnöstä, koska autoresoluutio on täysin valinnainen lisähaku.
+	 */
+	car?: Car;
 }
 
 export interface LatestRaceResult {
@@ -695,6 +706,16 @@ export interface SeasonRaceListEntry {
 	date: Date | undefined;
 	/** True = kisa on jo ajettu (löytyy `/finishedraces/{season}`-joukosta) — vain näille linkitetään tulossivulle, ks. `/kaudet/[seasonId]/+page.svelte`. */
 	finished: boolean;
+	/**
+	 * UUSI 26.9.2026 (`car_assignments` käyttöön): TÄLLE KISALLE erikseen
+	 * kirjatut autot, ks. types.ts:n `RawRaceListEntry.cars`-kommentti.
+	 * TYHJÄ taulukko EI tarkoita "ei autoa" — vain ettei kisakohtaista
+	 * tietoa ole vielä syötetty (kuljettajat voivat silti ajaa kausi-
+	 * oletuksellaan). Eri asia kuin kauden koko pooli (`Car[]` muualla
+	 * tässä tiedostossa, esim. `/kaudet/[seasonId]/+page.server.ts`:n
+	 * `cars`) — tämä on VAIN tämän yhden kisan oma lista.
+	 */
+	cars: Car[];
 }
 
 /**
@@ -714,7 +735,8 @@ export function mapSeasonRaceList(
 		trackName: race.track,
 		trackId: race.trackId ?? undefined,
 		date: parseHelsinkiDateTime(race.date, race.time),
-		finished: finishedRaceIds.has(race.id)
+		finished: finishedRaceIds.has(race.id),
+		cars: mapCars(race.cars ?? [])
 	}));
 }
 
@@ -1251,9 +1273,13 @@ export function mapCars(raw: RawCarListResponse): Car[] {
  * `exclusive`: kauden autopoolissa oli TASAN yksi auto (tämä), jolloin
  * TIEDÄMME sen olleen mukana JOKAISESSA kauden kisassa (ks. Car-kommentin
  * perustelu) — kutsuja hakee tällöin kauden koko kisalistan `races`-
- * kenttään. Useamman auton kausilla EI tiedetä mitä yksittäisiä kisoja
- * tämä auto koski (`car_assignments`-taulu tyhjä) — `exclusive` on
- * `false` ja `races` jää TYHJÄKSI, ei arvata.
+ * kenttään. Useamman auton kausilla EI tässä yritetä selvittää mitä
+ * yksittäisiä kisoja tämä auto koski — vaikka `car_assignments`-taulu on
+ * NYT käytössä (26.9.2026) ja antaisi periaatteessa tarkan vastauksen
+ * `/cars/race/{season}/{race}`:n kautta, se vaatisi YHDEN kutsun PER
+ * kisa PER kausi tälle jo valmiiksi raskaalle N+1-sivulle (ks. API-TODO.md)
+ * — liian kallista tälle "parasta yritystä" -historialistalle. `exclusive`
+ * on tällöin `false` ja `races` jää TYHJÄKSI, ei arvata.
  */
 export interface CarSeasonMatch {
 	seasonId: number;
@@ -1272,4 +1298,94 @@ export function matchCarSeasons(
 			seasonName: season.seasonName,
 			exclusive: season.pool.length === 1
 		}));
+}
+
+/**
+ * Auton ratkaisu kisan koko kuljettajaruudukolle — UUSI 26.9.2026,
+ * `car_assignments`-taulu tuli käyttöön. Nelitasoinen ratkaisujärjestys
+ * (backendin oma dokumentaatio, tarkimmasta epätarkimpaan):
+ *   1. kuljettaja+kisa-kohtainen poikkeus
+ *   2. kuljettajan oma kausioletus
+ *   3. koko kisan varaosa-auto (kaikille joilla ei omaa riviä)
+ *   4. kauden poolin auto, VAIN jos poolissa on TASAN yksi
+ * `/cars/race/{season}/{race}` (ks. `mapRaceCars`) ratkaisee tasot 1-2
+ * valmiiksi `data`-taulukkoon ja antaa tason 3 `raceWideCar`-kenttänä —
+ * TÄMÄ tiedosto ei siis päättele niitä itse. Taso 4 EI sisälly backendin
+ * vastaukseen (se soveltuu vain `/cars/{season}/{driver}/{race}`-
+ * endpointilla), joten `resolveDriverCar` (alla) soveltaa sen itse
+ * `mapRaceCars`:n tuloksen päälle — sama päättely kuin `matchCarSeasons`:
+ * jo käyttää kausi-/kisasivujen `CarList`-listoilla.
+ */
+export interface RaceCarResolution {
+	byDriverId: Map<number, Car>;
+	raceWideCar?: Car;
+}
+
+export function mapRaceCars(response: RawRaceCarsResponse): RaceCarResolution {
+	const byDriverId = new Map<number, Car>();
+	for (const assignment of response.data) {
+		byDriverId.set(Number(assignment.driverId), {
+			id: Number(assignment.carId),
+			name: assignment.name,
+			sim: assignment.sim || undefined
+		});
+	}
+
+	return {
+		byDriverId,
+		raceWideCar: response.raceWideCar ? mapCar(response.raceWideCar) : undefined
+	};
+}
+
+/**
+ * Ratkaisee YHDEN kuljettajan auton tässä kisassa, tasot 1-4 (ks. yllä).
+ * `undefined` on LAILLINEN, odotettu lopputulos jos mikään taso ei osu
+ * (backendin oma esimerkki: `data: null` "genuinely unresolved") — EI
+ * virhetila, UI näyttää tällöin "auto ei tiedossa" -tilan sen sijaan
+ * että arvattaisiin tai virhettä heitettäisiin.
+ */
+export function resolveDriverCar(driverId: number, resolution: RaceCarResolution, seasonPool: Car[]): Car | undefined {
+	return (
+		resolution.byDriverId.get(driverId) ??
+		resolution.raceWideCar ??
+		(seasonPool.length === 1 ? seasonPool[0] : undefined)
+	);
+}
+
+/**
+ * Liittää `resolveDriverCar`:n tuloksen jokaiselle kisatuloksen riville —
+ * ERILLINEN funktio `mapLatestRaceResult`:n PÄÄLLE (ei sotkettu siihen
+ * suoraan), koska autoresoluutio on täysin valinnainen lisähaku: kisasivu
+ * toimii ja näyttää tulokset normaalisti vaikka `/cars/race/{season}/{race}`
+ * -haku epäonnistuisi (ks. `/kaudet/[seasonId]/kilpailut/[raceId]/
+ * +page.server.ts`:n try/catch-rajaus).
+ */
+export function attachRaceCars(
+	result: LatestRaceResult,
+	resolution: RaceCarResolution,
+	seasonPool: Car[]
+): LatestRaceResult {
+	return {
+		...result,
+		results: result.results.map((entry) => ({
+			...entry,
+			car: resolveDriverCar(entry.driverId, resolution, seasonPool)
+		}))
+	};
+}
+
+/**
+ * Kaikki tälle KISALLE ratkaistut eri autot (kuljettajakohtaiset +
+ * varaosa-auto), duplikaatit poistettuna auton id:n mukaan — kisasivun
+ * ylälaidan `CarList`-listaa varten. TYHJÄ jos MITÄÄN ei ole vielä
+ * kirjattu TÄLLE kisalle erikseen (ei sama asia kuin "ei autoa ajettu",
+ * ks. types.ts:n `RawRaceListEntry.cars`-kommentti) — kutsuja
+ * (+page.server.ts) näyttää tällöin kauden poolin sen sijaan, käyttäjän
+ * ohjeen mukaisesti ("fall back to the season-level pool display").
+ */
+export function raceCarsUnion(resolution: RaceCarResolution): Car[] {
+	const byId = new Map<number, Car>();
+	for (const car of resolution.byDriverId.values()) byId.set(car.id, car);
+	if (resolution.raceWideCar) byId.set(resolution.raceWideCar.id, resolution.raceWideCar);
+	return [...byId.values()];
 }

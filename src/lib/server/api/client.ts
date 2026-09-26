@@ -31,6 +31,7 @@ import type {
 	RawFinishedRaceIdsResponse,
 	RawHallOfFameResponse,
 	RawOrganiserSummaryResponse,
+	RawRaceCarsResponse,
 	RawRaceListResponse,
 	RawRaceResultResponse,
 	RawStatsCompleteResponse,
@@ -244,4 +245,16 @@ export function fetchSeasonCarPool(fetchFn: typeof fetch, seasonId: number) {
  */
 export function fetchCarDictionary(fetchFn: typeof fetch) {
 	return apiFetchEnvelope<RawCarListResponse>(fetchFn, `/cars`);
+}
+
+/**
+ * Hakee kisan koko autoruudukon — UUSI 26.9.2026, `car_assignments`-taulu
+ * tuli käyttöön (ks. types.ts:n `RawRaceCarsResponse`-kommentti neli-
+ * tasoisesta ratkaisujärjestyksestä). HUOM: KOKO kääre (success+data+
+ * raceWideCar), EI `apiFetchEnvelope`, koska `raceWideCar` on `data`:n
+ * SISARUSKENTTÄ — sama periaate kuin `fetchHallOfFame`/`fetchDriverCareer`
+ * -funktioissa.
+ */
+export function fetchRaceCars(fetchFn: typeof fetch, seasonId: number, raceId: number) {
+	return apiFetch<RawRaceCarsResponse>(fetchFn, `/cars/race/${seasonId}/${raceId}`);
 }
