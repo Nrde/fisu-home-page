@@ -193,28 +193,34 @@ export interface RawRaceListEntry {
 	time: string;
 	track: string;
 	trackId: string | null;
-	/** UUSI 26.9.2026 — ks. yllä oleva kommentti. Ratkaise täydet autot `RawSeasonRacesResponse.carDetails`:n kautta, EI odota täyttä oliota tässä. */
+	/** UUSI 26.9.2026 — ks. yllä oleva kommentti. Ratkaise täydet autot `RawSeasonRacesResponse.cars`:n kautta, EI odota täyttä oliota tässä. */
 	carIds?: number[];
 }
 
 export type RawRaceListResponse = RawRaceListEntry[];
 
 /**
- * GET /races/{season} — KOKO kääre (26.9.2026 lähtien tarpeen `carDetails`-
+ * GET /races/{season} — KOKO kääre (26.9.2026 lähtien tarpeen `cars`-
  * sanakirjan takia, joka on `data`:n SISARUSKENTTÄ, sama periaate kuin
- * `RawHallOfFameResponse.intro`:ssa). `cars` on kauden pooli, ENNALLAAN
- * (sama data kuin `/cars/season/{season}`, ks. sen kommentti) — `carDetails`
- * on UUSI, kattaa KAIKKI tässä vastauksessa esiintyvät autot (pool + jokaisen
- * kisan `carIds`) kerran, avaimena auto-id MERKKIJONONA (JSON-object-avaimet
- * ovat aina merkkijonoja). `client.ts`:n vanha `fetchSeasonRaces` (pelkkä
- * `apiFetchEnvelope`, hukkaa sisarkentät) EI riitä sivuille jotka tarvitsevat
- * per-kisa-autoja — niille on oma `fetchSeasonRacesWithCarDetails`.
+ * `RawHallOfFameResponse.intro`:ssa).
+ *
+ * KORJAUS (26.9.2026, SAMANA päivänä TOINEN muoto vielä): ensimmäinen
+ * versio tästä käytti `cars: RawCar[]` (täysi pooli, ennallaan vanhasta
+ * `/cars/season/{season}`:sta) + `carDetails: {id: RawCar}` (kaikki tässä
+ * vastauksessa esiintyvät autot). Backend vaihtoi TÄMÄN vielä kertaalleen
+ * käyttäjän liittämän oikean tuotantovastauksen mukaiseksi: pooli on nyt
+ * `poolCarIds: number[]` (VAIN id:t, ei täysiä olioita) ja `cars` ON NYT
+ * ITSE se id->olio-sanakirja (aiemman `carDetails`:n paikalla, sama sisältö
+ * — kattaa poolin JA jokaisen kisan `carIds`:t kerran). `count` on pelkkä
+ * kisamäärä, ei käytetä UI:ssa. HUOM: näiden sanakirjan ARVOJEN `id`-kenttä
+ * on nimeltään `carId`, ks. `RawCar`-kommentti — `mapCar` osaa molemmat.
  */
 export interface RawSeasonRacesResponse {
 	success: boolean;
 	data: RawRaceListEntry[];
-	cars: RawCarListResponse;
-	carDetails: Record<string, RawCar>;
+	count: number;
+	poolCarIds: number[];
+	cars: Record<string, RawCar>;
 }
 
 /**
@@ -428,8 +434,20 @@ export interface RawCar {
 	 * kuin `RawCurrentSeasonResponse.data.id`/`RawDriverStanding.id` —
 	 * tyyppi kuvaa tätä nyt rehellisesti, `mapCar` tekee `Number(...)`-
 	 * muunnoksen ennen käyttöä.
+	 *
+	 * TOINEN BUGI (26.9.2026, käyttäjän raportoima `each_key_volatile`/
+	 * `NaN`-avainvirhe kisasivun CarList:issa): kun tämä olio tulee ID:llä
+	 * AVATETUN sanakirjan ARVONA (esim. `RawSeasonRacesResponse.cars` tai
+	 * `RawRaceCarsData.carDetails`, molemmat muotoa `{ [id]: RawCar }`),
+	 * backend antaa kentän nimellä `carId`, EI `id` — `mapCar` yritti lukea
+	 * `raw.id`:tä joka oli `undefined` näissä olioissa, `Number(undefined)`
+	 * -> `NaN`, joka päätyi suoraan `{#each}`-avaimeksi. Molemmat kentät
+	 * ovat siis VALINNAISIA tässä tyypissä — `mapCar` lukee `id ?? carId`.
+	 * Taulukkomuotoiset vastaukset (`/cars`, `/cars/season/{season}`) EIVÄT
+	 * ole (toistaiseksi) muuttuneet — niissä on edelleen VAIN `id`.
 	 */
-	id: number | string;
+	id?: number | string;
+	carId?: number | string;
 	extId: number | string;
 	sim: string;
 	name: string;

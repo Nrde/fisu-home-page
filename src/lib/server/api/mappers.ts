@@ -25,6 +25,7 @@ import type {
 	RawRaceListResponse,
 	RawRaceResultDriver,
 	RawRaceResultResponse,
+	RawSeasonRacesResponse,
 	RawSeasonSummary,
 	RawStatsCompleteResponse,
 	RawStatsResponse,
@@ -725,13 +726,16 @@ export interface SeasonRaceListEntry {
  * kronologiseksi, ks. niiden kommentit), jotta kierrosnumerointi pysyy
  * yhdenmukaisena koko sivustolla.
  *
- * `carDetails` on VALINNAINEN (26.9.2026, ks. types.ts:n
- * `RawSeasonRacesResponse`-kommentti) — id -> täysi RawCar-sanakirja,
- * jota vasten kunkin kisan `carIds` ratkaistaan täysiksi `Car`-olioiksi.
- * Kutsujat jotka eivät tarvitse per-kisa-autoja (etusivu, radat/[trackid],
- * autot/[carId]:n kausihistoria — nämä käyttävät edelleen `fetchSeasonRaces`
- * -funktiota joka ei anna `carDetails`ia) jättävät tämän pois, jolloin
- * jokainen rivi saa tyhjän `cars: []`:n eikä mitään kaadu.
+ * `carDetails` on VALINNAINEN — id -> täysi RawCar-sanakirja (26.9.2026:
+ * tämä on `RawSeasonRacesResponse.cars`, ks. sen kommentti historiasta —
+ * NIMI on hämäävä koska se ON eri asia kuin `Car[]`-tyyppinen kauden
+ * pooli, mutta backend käyttää samaa `cars`-nimeä eri muodossa eri
+ * endpointeilla), jota vasten kunkin kisan `carIds` ratkaistaan täysiksi
+ * `Car`-olioiksi. Kutsujat jotka eivät tarvitse per-kisa-autoja (etusivu,
+ * radat/[trackid], autot/[carId]:n kausihistoria — nämä käyttävät
+ * edelleen `fetchSeasonRaces`-funktiota joka ei anna tätä sanakirjaa)
+ * jättävät tämän pois, jolloin jokainen rivi saa tyhjän `cars: []`:n
+ * eikä mitään kaadu.
  */
 export function mapSeasonRaceList(
 	races: RawRaceListResponse,
@@ -750,6 +754,23 @@ export function mapSeasonRaceList(
 			.filter((raw): raw is RawCar => raw !== undefined)
 			.map(mapCar)
 	}));
+}
+
+/**
+ * Kauden autopooli JOHDETTUNA `/races/{season}`-vastauksen `poolCarIds`+
+ * `cars`-kentistä sen sijaan että haettaisiin erikseen `/cars/season/
+ * {season}`:sta — UUSI 26.9.2026, kun backend yhdisti pooli-id:t ja
+ * KAIKKIEN tässä vastauksessa esiintyvien autojen tiedot samaan
+ * `/races/{season}`-kutsuun. Kausisivu (+page.server.ts) käyttää tätä
+ * ylälaidan `<CarList>`:ia varten sen sijaan että tekisi enää erillistä
+ * `/cars/season/{seasonId}`-kutsua — yksi vähemmän API-kutsu (ks.
+ * API-TODO.md:n aiempi huomautus juuri tästä redundanssista).
+ */
+export function mapSeasonPool(response: RawSeasonRacesResponse): Car[] {
+	return response.poolCarIds
+		.map((id) => response.cars[String(id)])
+		.filter((raw): raw is RawCar => raw !== undefined)
+		.map(mapCar);
 }
 
 export interface DriverListEntry {
@@ -1256,10 +1277,19 @@ export interface Car {
  * `cars.find((c) => c.id === carId)` (numero) epäonnistui AINA hiljaisesti
  * riippumatta siitä mikä id kokeiltiin — `===` ei koskaan täsmää
  * merkkijonon ja numeron välillä JavaScriptissä.
+ *
+ * TOINEN BUGIKORJAUS (26.9.2026, käyttäjän raportoima `each_key_volatile`/
+ * `NaN`-avain kisasivun CarList:issa): kun `raw` tulee ID:llä avatetun
+ * sanakirjan ARVONA (`RawSeasonRacesResponse.cars`, `RawRaceCarsData.
+ * carDetails`), backend nimeää id-kentän `carId`:ksi, EI `id`:ksi (ks.
+ * types.ts:n RawCar-kommentti) — `raw.id` oli `undefined` näissä, ja
+ * `Number(undefined)` on `NaN`. `raw.id ?? raw.carId` lukee kummankin
+ * muodon: taulukkomuotoiset vastaukset (`/cars`, `/cars/season/{season}`)
+ * antavat vain `id`:n, sanakirjamuotoiset vain `carId`:n.
  */
 export function mapCar(raw: RawCar): Car {
 	return {
-		id: Number(raw.id),
+		id: Number(raw.id ?? raw.carId),
 		name: raw.name,
 		manufacturer: raw.manufacturer ?? undefined,
 		class: raw.class ?? undefined,

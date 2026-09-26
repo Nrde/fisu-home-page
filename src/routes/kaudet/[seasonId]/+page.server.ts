@@ -9,19 +9,15 @@
  *
  * PÄIVITYS (26.9.2026): `/races/{season}`-kutsu käyttää nyt
  * `fetchSeasonRacesWithCarDetails`ia tavallisen `fetchSeasonRaces`:n sijaan
- * — sama endpoint, mutta palauttaa myös `carDetails`-sanakirjan, jota
- * `mapSeasonRaceList` tarvitsee ratkaistakseen kunkin kisan omat
- * `carIds`:t täysiksi autoiksi (ks. types.ts:n `RawSeasonRacesResponse`).
+ * — sama endpoint, mutta palauttaa myös `poolCarIds`+`cars`-sanakirjan
+ * (ks. types.ts:n `RawSeasonRacesResponse`-kommentti kahdesta muotoversiosta
+ * samana päivänä). Tämä KORVAA myös erillisen `/cars/season/{seasonId}`
+ * -kutsun kokonaan (`mapSeasonPool` johtaa kauden poolin näistä samoista
+ * kentistä) — yksi vähemmän API-kutsu kausisivulla.
  */
 import { error } from '@sveltejs/kit';
-import {
-	ApiError,
-	fetchFinishedRaceIds,
-	fetchOrganiserSummary,
-	fetchSeasonCarPool,
-	fetchSeasonRacesWithCarDetails
-} from '#lib/server/api/client.ts';
-import { mapCars, mapCurrentSeason, mapSeasonRaceList } from '#lib/server/api/mappers.ts';
+import { ApiError, fetchFinishedRaceIds, fetchOrganiserSummary, fetchSeasonRacesWithCarDetails } from '#lib/server/api/client.ts';
+import { mapCurrentSeason, mapSeasonPool, mapSeasonRaceList } from '#lib/server/api/mappers.ts';
 import type { PageServerLoad } from './$types';
 
 const ORGANISER = 'fisu';
@@ -39,16 +35,15 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 			throw error(404, `Kautta ${seasonId} ei löytynyt.`);
 		}
 
-		const [racesResponse, finishedRaceIds, carPool] = await Promise.all([
+		const [racesResponse, finishedRaceIds] = await Promise.all([
 			fetchSeasonRacesWithCarDetails(fetch, seasonId),
-			fetchFinishedRaceIds(fetch, seasonId),
-			fetchSeasonCarPool(fetch, seasonId)
+			fetchFinishedRaceIds(fetch, seasonId)
 		]);
 
 		return {
 			season: { ...season, totalRaces: finishedRaceIds.length },
-			races: mapSeasonRaceList(racesResponse.data, new Set(finishedRaceIds), racesResponse.carDetails),
-			cars: mapCars(carPool)
+			races: mapSeasonRaceList(racesResponse.data, new Set(finishedRaceIds), racesResponse.cars),
+			cars: mapSeasonPool(racesResponse)
 		};
 	} catch (err) {
 		// HUOM: `ApiError`:lla on itselläänkin julkinen `status`-kenttä, joten
