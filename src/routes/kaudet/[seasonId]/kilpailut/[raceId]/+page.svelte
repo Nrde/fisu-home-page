@@ -68,7 +68,11 @@
 			{ value: 'positionChange', label: 'Sijoja voitettu/hävitty' }
 		]}
 	/>
-	<div class="fluid-grid result-grid" data-minsize="320px" data-gap="3" data-density="compact">
+	<!-- Käyttäjän pyyntö 26.9.2026: leveämmät kortit (320px -> 360px) + pienempi
+	     ruudukon väli (data-gap 3 -> 2) — pitkä nimi ("Lucky like Fauntleroy")
+	     ahtautui DNF/sijoitusmuutos-badgen kanssa kapeammilla korteilla, ks.
+	     myös ListRow.svelte:n `.list-row__name`-clamp-tweaksta samasta pyynnöstä. -->
+	<div class="fluid-grid result-grid" data-minsize="360px" data-gap="2" data-density="compact">
 		{#each sortedResults as result (result.driverId)}
 			<div class="result-grid__item" animate:flip={{ duration: 350, easing: cubicOut }}>
 				<RaceResultRow

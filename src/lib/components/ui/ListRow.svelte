@@ -361,8 +361,17 @@
 		   (21.9.2026, kolmas kierros): kasvatettu ISOMMAKSI kuin
 		   edellisessä versiossa, koska nimellä on NYT oma rivinsä
 		   yksinään eikä sen tarvitse enää jakaa tilaa aikaeron kanssa
-		   samalla rivillä. */
-		font-size: clamp(1.05rem, 0.88rem + 2.3cqi, 1.35rem);
+		   samalla rivillä.
+		   PÄIVITYS (26.9.2026, käyttäjän raportoima kuvakaappaus): pitkät
+		   nimet (esim. "Lucky like Fauntleroy") ahtautuivat DNF/sijoitus-
+		   muutos-badgen kanssa `nameTrailing`-ryhmässä kapeimmilla korteilla
+		   — kasvunopeus (cqi-kerroin) ja yläraja pudotettu hieman
+		   maltillisemmiksi antamaan badgelle enemmän tilaa, EI kokonaan
+		   pienennetty (käyttäjän aiempi 21.9.2026 pyyntö "tekstit
+		   mahdollisimman isolla" pysyy voimassa muille nimille) — yhdessä
+		   `.fluid-grid`:n leveämpien korttien (ks. +page.svelte:t,
+		   `data-minsize="360px"`) kanssa. */
+		font-size: clamp(1.05rem, 0.85rem + 1.9cqi, 1.3rem);
 		font-weight: 700;
 		/* HUOM: EI overflow-wrap: break-word. Se nimenomaan SALLISI
 		   katkaisun kesken sanan ("Hyytiäi-" / "nen") jos tilaa on
