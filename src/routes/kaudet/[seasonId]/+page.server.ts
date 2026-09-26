@@ -6,6 +6,12 @@
  * etusivukin jo käyttää nykyiselle kaudelle, tässä minkä tahansa
  * `seasonId`:n mukaan — ja UUSI 25.9.2026 `/cars/season/{season}`
  * (kauden autopooli, ks. mappers.ts:n Car-kommentti).
+ *
+ * PÄIVITYS (26.9.2026): `/races/{season}`-kutsu käyttää nyt
+ * `fetchSeasonRacesWithCarDetails`ia tavallisen `fetchSeasonRaces`:n sijaan
+ * — sama endpoint, mutta palauttaa myös `carDetails`-sanakirjan, jota
+ * `mapSeasonRaceList` tarvitsee ratkaistakseen kunkin kisan omat
+ * `carIds`:t täysiksi autoiksi (ks. types.ts:n `RawSeasonRacesResponse`).
  */
 import { error } from '@sveltejs/kit';
 import {
@@ -13,7 +19,7 @@ import {
 	fetchFinishedRaceIds,
 	fetchOrganiserSummary,
 	fetchSeasonCarPool,
-	fetchSeasonRaces
+	fetchSeasonRacesWithCarDetails
 } from '#lib/server/api/client.ts';
 import { mapCars, mapCurrentSeason, mapSeasonRaceList } from '#lib/server/api/mappers.ts';
 import type { PageServerLoad } from './$types';
@@ -33,15 +39,15 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 			throw error(404, `Kautta ${seasonId} ei löytynyt.`);
 		}
 
-		const [races, finishedRaceIds, carPool] = await Promise.all([
-			fetchSeasonRaces(fetch, seasonId),
+		const [racesResponse, finishedRaceIds, carPool] = await Promise.all([
+			fetchSeasonRacesWithCarDetails(fetch, seasonId),
 			fetchFinishedRaceIds(fetch, seasonId),
 			fetchSeasonCarPool(fetch, seasonId)
 		]);
 
 		return {
 			season: { ...season, totalRaces: finishedRaceIds.length },
-			races: mapSeasonRaceList(races, new Set(finishedRaceIds)),
+			races: mapSeasonRaceList(racesResponse.data, new Set(finishedRaceIds), racesResponse.carDetails),
 			cars: mapCars(carPool)
 		};
 	} catch (err) {

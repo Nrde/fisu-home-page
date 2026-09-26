@@ -34,6 +34,7 @@ import type {
 	RawRaceCarsResponse,
 	RawRaceListResponse,
 	RawRaceResultResponse,
+	RawSeasonRacesResponse,
 	RawStatsCompleteResponse,
 	RawStatsResponse,
 	RawTrackListResponse
@@ -143,6 +144,19 @@ export function fetchCurrentSeason(fetchFn: typeof fetch, organiser: string) {
 /** Hakee kauden kaikki kisat (ajetut ja ajamattomat), ks. types.ts. */
 export function fetchSeasonRaces(fetchFn: typeof fetch, seasonId: number) {
 	return apiFetchEnvelope<RawRaceListResponse>(fetchFn, `/races/${seasonId}`);
+}
+
+/**
+ * Sama endpoint kuin `fetchSeasonRaces`, mutta palauttaa KOKO kääreen
+ * `carDetails`-sanakirjan takia (ks. types.ts:n `RawSeasonRacesResponse`-
+ * kommentti) — `apiFetchEnvelope` hukkaisi sen (purkaa vain `.data`:n).
+ * VAIN sivut jotka näyttävät per-kisa-autoja (esim. kausisivun kisalista)
+ * käyttävät tätä — muut kolme `fetchSeasonRaces`in kutsujaa (etusivu,
+ * radat/[trackid], autot/[carId]:n kausihistoria) eivät tarvitse
+ * `carDetails`:ia, joten niitä ei ole syytä muuttaa käyttämään tätä.
+ */
+export function fetchSeasonRacesWithCarDetails(fetchFn: typeof fetch, seasonId: number) {
+	return apiFetch<RawSeasonRacesResponse>(fetchFn, `/races/${seasonId}`);
 }
 
 /** Hakee kauden AJETTUJEN kisojen id:t (paljas taulukko, ei olioita). */

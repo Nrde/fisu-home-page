@@ -708,7 +708,7 @@ export interface SeasonRaceListEntry {
 	finished: boolean;
 	/**
 	 * UUSI 26.9.2026 (`car_assignments` käyttöön): TÄLLE KISALLE erikseen
-	 * kirjatut autot, ks. types.ts:n `RawRaceListEntry.cars`-kommentti.
+	 * kirjatut autot, ks. types.ts:n `RawRaceListEntry.carIds`-kommentti.
 	 * TYHJÄ taulukko EI tarkoita "ei autoa" — vain ettei kisakohtaista
 	 * tietoa ole vielä syötetty (kuljettajat voivat silti ajaa kausi-
 	 * oletuksellaan). Eri asia kuin kauden koko pooli (`Car[]` muualla
@@ -724,10 +724,19 @@ export interface SeasonRaceListEntry {
  * API:n oma järjestys (jota `mapUpcomingRace`/`raceNumber` jo olettavat
  * kronologiseksi, ks. niiden kommentit), jotta kierrosnumerointi pysyy
  * yhdenmukaisena koko sivustolla.
+ *
+ * `carDetails` on VALINNAINEN (26.9.2026, ks. types.ts:n
+ * `RawSeasonRacesResponse`-kommentti) — id -> täysi RawCar-sanakirja,
+ * jota vasten kunkin kisan `carIds` ratkaistaan täysiksi `Car`-olioiksi.
+ * Kutsujat jotka eivät tarvitse per-kisa-autoja (etusivu, radat/[trackid],
+ * autot/[carId]:n kausihistoria — nämä käyttävät edelleen `fetchSeasonRaces`
+ * -funktiota joka ei anna `carDetails`ia) jättävät tämän pois, jolloin
+ * jokainen rivi saa tyhjän `cars: []`:n eikä mitään kaadu.
  */
 export function mapSeasonRaceList(
 	races: RawRaceListResponse,
-	finishedRaceIds: Set<number>
+	finishedRaceIds: Set<number>,
+	carDetails: Record<string, RawCar> = {}
 ): SeasonRaceListEntry[] {
 	return races.map((race, index) => ({
 		raceId: race.id,
@@ -736,7 +745,10 @@ export function mapSeasonRaceList(
 		trackId: race.trackId ?? undefined,
 		date: parseHelsinkiDateTime(race.date, race.time),
 		finished: finishedRaceIds.has(race.id),
-		cars: mapCars(race.cars ?? [])
+		cars: (race.carIds ?? [])
+			.map((carId) => carDetails[String(carId)])
+			.filter((raw): raw is RawCar => raw !== undefined)
+			.map(mapCar)
 	}));
 }
 
@@ -1321,19 +1333,36 @@ export interface RaceCarResolution {
 	raceWideCar?: Car;
 }
 
+/**
+ * KORJATTU 26.9.2026 (sama päivä, käyttäjän raportoima 500-virhe, esim.
+ * `/kaudet/168/kilpailut/878`): backend vaihtoi tämän endpointin muodon
+ * datan turvotuksen välttämiseksi (ks. types.ts:n `RawRaceCarsResponse`-
+ * kommentti) — VANHA versio tästä funktiosta oletti `response.data`:n
+ * olevan TAULUKKO täysiä auto-olioita, mutta se on nyt JOKO `null` TAI
+ * olio jossa `assignments` (driverId+carId-PARIT, ei täysiä olioita) ja
+ * `carDetails` (id -> täysi RawCar) ovat ERILLÄÄN — `for...of response.data`
+ * kaatui `TypeError`iin heti kun `data` oli olio eikä taulukko.
+ */
 export function mapRaceCars(response: RawRaceCarsResponse): RaceCarResolution {
+	if (!response.data) return { byDriverId: new Map() };
+
+	const { carDetails, assignments, raceWideCarId } = response.data;
+
+	function resolveCarById(carId: number | string | null): Car | undefined {
+		if (carId === null) return undefined;
+		const raw = carDetails[String(carId)];
+		return raw ? mapCar(raw) : undefined;
+	}
+
 	const byDriverId = new Map<number, Car>();
-	for (const assignment of response.data) {
-		byDriverId.set(Number(assignment.driverId), {
-			id: Number(assignment.carId),
-			name: assignment.name,
-			sim: assignment.sim || undefined
-		});
+	for (const assignment of assignments) {
+		const car = resolveCarById(assignment.carId);
+		if (car) byDriverId.set(Number(assignment.driverId), car);
 	}
 
 	return {
 		byDriverId,
-		raceWideCar: response.raceWideCar ? mapCar(response.raceWideCar) : undefined
+		raceWideCar: resolveCarById(raceWideCarId)
 	};
 }
 

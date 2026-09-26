@@ -164,15 +164,24 @@ export interface RawCurrentSeasonResponse {
  * VAIN näyttöä varten (kisakalenterin rivin otsikko).
  *
  * PÄIVITYS (26.9.2026, `car_assignments` tuli käyttöön): jokaisella
- * kisalla on nyt OMA `cars`-kenttänsä — TÄLLE KISALLE ERIKSEEN kirjatut
- * autot, eri asia kuin kauden koko poolista (`RawCarListResponse`,
- * `/cars/season/{season}`). Backendin oma huomautus: TYHJÄ taulukko EI
- * tarkoita "ei autoa ajettu" — se voi yksinkertaisesti tarkoittaa ettei
- * KENENKÄÄN kuljettajakohtaista/kisakohtaista tietoa ole vielä syötetty
- * tälle kisalle (kuljettajat voivat silti käyttää omaa kausioletustaan,
- * joka ei ole sidottu tähän `race_id`:hen) — EI siis kohdella "ei
- * tietoa"/N/A-tilana, vaan "ei kisakohtaista näytettävää, näytä sen
- * sijaan kauden pooli jos jotain halutaan näyttää".
+ * kisalla on nyt OMA `carIds`-kenttänsä — TÄLLE KISALLE ERIKSEEN kirjatut
+ * autot ID:inä, eri asia kuin kauden koko poolista (`cars`-sisarkenttä,
+ * ennallaan, ks. `RawSeasonRacesResponse` alla). Backendin oma huomautus:
+ * TYHJÄ/PUUTTUVA taulukko EI tarkoita "ei autoa ajettu" — se voi
+ * yksinkertaisesti tarkoittaa ettei KENENKÄÄN kuljettajakohtaista/
+ * kisakohtaista tietoa ole vielä syötetty tälle kisalle (kuljettajat
+ * voivat silti käyttää omaa kausioletustaan, joka ei ole sidottu tähän
+ * `race_id`:hen) — EI siis kohdella "ei tietoa"/N/A-tilana, vaan "ei
+ * kisakohtaista näytettävää, näytä sen sijaan kauden pooli".
+ *
+ * KORJAUS (26.9.2026, sama päivä): backend muutti tämän TÄYSIIN
+ * kappaleisiin (`cars: RawCar[]`) verrattuna aiempaan — käyttäjän raportti:
+ * datan turvotus moniautoisilla kisoilla, koska sama auto-olio toistuisi
+ * jokaisella kisalla joka sitä käyttää. UUSI muoto: `carIds: number[]`
+ * (VAIN id:t per kisa) + vastauksen JUURESSA `carDetails`-sanakirja
+ * (id -> täysi RawCar, kaikki tässä vastauksessa esiintyvät autot
+ * KERRAN). Tämä EI vielä ollut missään UI:ssa käytössä kun muutos tuli,
+ * joten kyseessä on puhdas korvaus, ei migraatio.
  */
 export interface RawRaceListEntry {
 	id: number;
@@ -184,11 +193,29 @@ export interface RawRaceListEntry {
 	time: string;
 	track: string;
 	trackId: string | null;
-	/** UUSI 26.9.2026 — ks. yllä oleva kommentti. Valinnainen: vanhemmat backend-versiot eivät vielä antaneet tätä kenttää. */
-	cars?: RawCar[];
+	/** UUSI 26.9.2026 — ks. yllä oleva kommentti. Ratkaise täydet autot `RawSeasonRacesResponse.carDetails`:n kautta, EI odota täyttä oliota tässä. */
+	carIds?: number[];
 }
 
 export type RawRaceListResponse = RawRaceListEntry[];
+
+/**
+ * GET /races/{season} — KOKO kääre (26.9.2026 lähtien tarpeen `carDetails`-
+ * sanakirjan takia, joka on `data`:n SISARUSKENTTÄ, sama periaate kuin
+ * `RawHallOfFameResponse.intro`:ssa). `cars` on kauden pooli, ENNALLAAN
+ * (sama data kuin `/cars/season/{season}`, ks. sen kommentti) — `carDetails`
+ * on UUSI, kattaa KAIKKI tässä vastauksessa esiintyvät autot (pool + jokaisen
+ * kisan `carIds`) kerran, avaimena auto-id MERKKIJONONA (JSON-object-avaimet
+ * ovat aina merkkijonoja). `client.ts`:n vanha `fetchSeasonRaces` (pelkkä
+ * `apiFetchEnvelope`, hukkaa sisarkentät) EI riitä sivuille jotka tarvitsevat
+ * per-kisa-autoja — niille on oma `fetchSeasonRacesWithCarDetails`.
+ */
+export interface RawSeasonRacesResponse {
+	success: boolean;
+	data: RawRaceListEntry[];
+	cars: RawCarListResponse;
+	carDetails: Record<string, RawCar>;
+}
 
 /**
  * GET /finishedraces/{season} — PALJAS taulukko kisa-id:tä, ei olioita.
@@ -415,16 +442,29 @@ export type RawCarListResponse = RawCar[];
 
 /**
  * GET /cars/race/{season}/{race} — UUSI 26.9.2026, `car_assignments`
- * käyttöönoton myötä. "Koko ruudukko" -näkymä: `data` on tälle KISALLE
- * jo ratkaistut per-kuljettaja-rivit (tasot 1-2 nelitasoisesta
- * ratkaisujärjestyksestä, ks. mappers.ts:n `RaceCarResolution`-kommentti:
- * kuljettaja+kisa-poikkeus tai kuljettajan oma kausioletus), `raceWideCar`
- * on koko kisan VARAOSA-auto (taso 3) jota sovelletaan KENELLE TAHANSA
- * kuljettajalle joka EI ole `data`-listalla — `null` jos tälle kisalle ei
- * ole asetettu varaosa-autoa. HUOM: `raceWideCar` on vastauksen JUURESSA
- * `data`:n SISARUSKENTTÄNÄ (ei sen sisällä) — sama kääre-poikkeus kuin
- * `RawHallOfFameResponse`:n `intro`:ssa, joten `client.ts`:n
- * `fetchRaceCars` käyttää suoraa `apiFetch`ia, ei `apiFetchEnvelope`ia.
+ * käyttöönoton myötä. "Koko ruudukko" -näkymä tälle YHDELLE kisalle.
+ *
+ * KORJAUS (26.9.2026, sama päivä, käyttäjän raportoima 500-virhe esim.
+ * `/kaudet/168/kilpailut/878`:lla): backend vaihtoi tämän muodon SAMASTA
+ * syystä kuin `/races/{season}`:n (ks. `RawSeasonRacesResponse`-kommentti)
+ * — datan turvotuksen välttäminen moniautoisissa kisoissa. Kumpaakaan
+ * muotoa EI ollut vielä otettu käyttöön MISSÄÄN UI:ssa (`mapRaceCars`
+ * ehti mennä tuotantoon vain tunteja aiemmalla, VÄÄRÄLLÄ oletuksella
+ * `data`:sta TAULUKKONA + `raceWideCar` täytenä oliona sisarkenttänä) —
+ * `for (const x of response.data)` kaatui `TypeError: response.data is
+ * not iterable` heti kun `data` OLIKIN olio (tai `null`), koska JS ei
+ * voi iteroida oliota `for...of`:lla — tästä 500 tuli.
+ *
+ * OIKEA muoto: `data` on JOKO `null` (ei mitään ratkaistu tälle kisalle,
+ * LAILLINEN tila, EI virhe) TAI olio jossa:
+ *   - `carDetails`: id -> täysi RawCar, kaikki tässä vastauksessa
+ *     esiintyvät autot kerran (sama periaate kuin `RawSeasonRacesResponse`:ssa).
+ *   - `assignments`: VAIN ne kuljettajat joilla on OMA poikkeus/kausioletus
+ *     (tasot 1-2) — driverId+carId PARI, EI täyttä auto-oliota riveillä,
+ *     hae aina `carDetails[carId]`:n kautta.
+ *   - `raceWideCarId`: koko kisan VARAOSA-auton id (taso 3), `null` jos
+ *     ei asetettu — sovelletaan KENELLE TAHANSA kuljettajalle joka EI ole
+ *     `assignments`-listalla.
  *
  * Taso 4 (kauden poolin ainoa auto) EI sisälly tähän vastaukseen —
  * backend soveltaa sen vain yksittäisen kuljettajan
@@ -434,14 +474,17 @@ export type RawCarListResponse = RawCar[];
 export interface RawRaceCarAssignment {
 	driverId: number | string;
 	carId: number | string;
-	name: string;
-	sim: string;
+}
+
+export interface RawRaceCarsData {
+	carDetails: Record<string, RawCar>;
+	assignments: RawRaceCarAssignment[];
+	raceWideCarId: number | string | null;
 }
 
 export interface RawRaceCarsResponse {
 	success: boolean;
-	data: RawRaceCarAssignment[];
-	raceWideCar: RawCar | null;
+	data: RawRaceCarsData | null;
 }
 
 /**
