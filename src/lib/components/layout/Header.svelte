@@ -20,6 +20,7 @@
 <header class="site-header page-grid bleed">
 	<div class="site-header__inner">
 		<a href="/" class="site-header__logo">
+			<img src="/fisu-logo.png" alt="" width="525" height="432" class="site-header__logo-mark" />
 			FISU<span class="site-header__logo-accent">.</span>
 		</a>
 
@@ -85,9 +86,35 @@
 	}
 
 	.site-header__logo {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
 		font-size: var(--font-size-lg);
 		font-weight: 900;
 		letter-spacing: 0.02em;
+	}
+
+	/*
+	 * Logo-merkki "FISU."-tekstin vasemmalla puolella — käyttäjän pyyntö
+	 * 27.9.2026 (`static/fisu-logo.png`, tarjoillaan SvelteKitin staattisena
+	 * tiedostona sellaisenaan URL-juuresta). PNG EIKÄ SVG: ensimmäinen
+	 * annettu SVG oli 453 kt (auto-jäljitetty pikselipolku, ei siisti
+	 * vektori) — käyttäjä vaihtoi sen tähän 146 kt PNG:hen samana päivänä
+	 * liian suureksi todetun SVG:n tilalle. `width`/`height`-attribuutit
+	 * (525x432, kuvan oma resoluutio) EIVÄT ole näyttökoko — ne varaavat
+	 * oikean kuvasuhteen ETUKÄTEEN ennen kuvan latautumista (estää layout-
+	 * hyppäyksen), itse NÄYTTÖKOKO tulee alla olevasta CSS:stä. `height` on `em`-yksikkö
+	 * SUHTEESSA `.site-header__logo`:n omaan fonttikokoon, ei kiinteä px-
+	 * arvo — merkki skaalautuu automaattisesti jos otsikkotekstin koko
+	 * joskus muuttuu. `1.4em` on hieman KORKEAMPI kuin viereinen teksti
+	 * (käyttäjän pyyntö "slightly taller than the text"), `align-items:
+	 * center` yllä `.site-header__logo`:lla keskittää sen pystysuunnassa
+	 * tekstiin nähden sen sijaan että se noudattaisi tekstin perusviivaa.
+	 */
+	.site-header__logo-mark {
+		display: block;
+		height: 1.4em;
+		width: auto;
 	}
 
 	.site-header__logo-accent {
