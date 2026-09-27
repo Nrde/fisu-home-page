@@ -21,7 +21,7 @@
 	<div class="site-header__inner">
 		<a href="/" class="site-header__logo">
 			<img src="/fisu-logo.png" alt="" width="525" height="432" class="site-header__logo-mark" />
-			FISU<span class="site-header__logo-accent">.</span>
+			<span class="site-header__logo-text">FISU<span class="site-header__logo-accent">.</span></span>
 		</a>
 
 		<nav aria-label="Päänavigaatio" class="site-header__nav site-header__nav--desktop">
@@ -93,6 +93,20 @@
 		font-weight: 900;
 		letter-spacing: 0.02em;
 	}
+
+	/*
+	 * BUGIKORJAUS (27.9.2026, käyttäjän raportoima: "the point is not next
+	 * to fisu anymore"): kun logokuva lisättiin, templaatissa oli KOLME
+	 * suoraa lasta `.site-header__logo`:n SISÄLLÄ (`<img>`, paljas "FISU"-
+	 * tekstisolmu, `.site-header__logo-accent`-span) — flexbox-kontainerissa
+	 * MYÖS paljas tekstisolmu on OMA anonyymi flex-itemensä, joten yllä
+	 * oleva `gap` -sääntö työnsi tilaa JOKAISEN kolmen väliin, myös "FISU":n
+	 * ja pisteen väliin (jotka piti näyttää KIINNI toisissaan). Korjaus:
+	 * "FISU." kokonaisuudessaan (teksti + piste-span) kääritty YHTEEN
+	 * `<span class="site-header__logo-text">`:iin templaatissa, jolloin
+	 * `.site-header__logo`:lla on enää KAKSI flex-itemiä (kuva, teksti) —
+	 * `gap` vaikuttaa vain niiden väliin, ei enää tekstin sisällä.
+	 */
 
 	/*
 	 * Logo-merkki "FISU."-tekstin vasemmalla puolella — käyttäjän pyyntö
