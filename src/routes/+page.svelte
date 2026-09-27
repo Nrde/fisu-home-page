@@ -85,6 +85,28 @@
 	});
 
 	/**
+	 * Ryhmittelee `sortedResults`:n splitin mukaan otsikkorivejä varten —
+	 * sama periaate ja SAMA syy (Svelten `animate:flip`-rajoitus: keyed
+	 * `{#each}`-lohkon on oltava sen AINOA lapsi) kuin kisasivun
+	 * (`/kaudet/[seasonId]/kilpailut/[raceId]`) `resultGroups`:issa, ks.
+	 * sen kommentti.
+	 */
+	const resultGroups = $derived.by(() => {
+		if (resultSort !== 'position') return [{ split: null as number | null, items: sortedResults }];
+
+		const groups: { split: number | null; items: typeof sortedResults }[] = [];
+		for (const result of sortedResults) {
+			const currentGroup = groups.at(-1);
+			if (currentGroup && currentGroup.split === result.split) {
+				currentGroup.items.push(result);
+			} else {
+				groups.push({ split: result.split, items: [result] });
+			}
+		}
+		return groups;
+	});
+
+	/**
 	 * "Sarjataulukko" -osion järjestys — käyttäjän pyyntö 21.9.2026
 	 * ("voisiko ko listaa sortata mielenkiintoisilla tavoilla?"). Sama
 	 * periaate kuin tulosluettelon lajittelussa yllä: mikään näistä EI
@@ -191,30 +213,39 @@
 				{ value: 'positionChange', label: 'Sijoja voitettu/hävitty' }
 			]}
 		/>
-		<!-- Käyttäjän pyyntö 26.9.2026: voittajan rivillä (position === 1) näytetään
-		     nyt `gapDisplay`-paikalla auton kokonaisaika (`raceTime`) sen sijaan että
-		     paikka jäisi tyhjäksi — muille kuljettajille sama paikka näyttää edelleen
-		     eron voittajaan (`result.gapDisplay`), ks. mappers.ts:n `LatestRaceResult.
-		     raceTime`-kommentti. -->
+		<!-- Käyttäjän pyyntö 26.9.2026: voittajan rivillä näytetään `gapDisplay`-paikalla
+		     auton kokonaisaika (`raceTime`) sen sijaan että paikka jäisi tyhjäksi — muille
+		     kuljettajille sama paikka näyttää edelleen eron voittajaan (`result.gapDisplay`),
+		     ks. mappers.ts:n `LatestRaceResult.raceTime`-kommentti. PÄIVITYS 27.9.2026
+		     (splittien käyttöönotto): `raceTime` annetaan VAIN "oikealle" voittajalle
+		     (ei-splitattu kisa, TAI splitin 1 oma P1) — ks. kisasivun vastaava kommentti. -->
 		<!-- Käyttäjän pyyntö 26.9.2026: leveämmät kortit (320px -> 360px) + pienempi
 		     ruudukon väli (data-gap 3 -> 2) — pitkä nimi ("Lucky like Fauntleroy")
 		     ahtautui DNF/sijoitusmuutos-badgen kanssa kapeammilla korteilla, ks.
 		     myös ListRow.svelte:n `.list-row__name`-clamp-tweaksta samasta pyynnöstä. -->
 		<div class="fluid-grid result-grid" data-minsize="360px" data-gap="2" data-density="compact">
-			{#each sortedResults as result (result.driverId)}
-				<div class="result-grid__item" animate:flip={{ duration: 350, easing: cubicOut }}>
-					<RaceResultRow
-						position={result.position}
-						displayPosition={result.displayPosition}
-						name={result.name}
-						gapDisplay={result.position === 1 ? data.latestRaceResult.raceTime : result.gapDisplay}
-						bestLapTime={result.bestLapTime}
-						fastestLap={result.fastestLap}
-						featured={result.position === 1}
-						positionChange={result.positionChange}
-						dnf={result.dnf}
-					/>
-				</div>
+			{#each resultGroups as group (group.split ?? 'all')}
+				{#if group.split !== null}
+					<div class="split-divider">Split {group.split}</div>
+				{/if}
+				{#each group.items as result (result.driverId)}
+					<div class="result-grid__item" animate:flip={{ duration: 350, easing: cubicOut }}>
+						<RaceResultRow
+							position={result.position}
+							displayPosition={result.displayPosition}
+							name={result.name}
+							gapDisplay={result.position === 1 && (result.split === null || result.split === 1)
+								? data.latestRaceResult.raceTime
+								: result.gapDisplay}
+							bestLapTime={result.bestLapTime}
+							split={result.split}
+							fastestLap={result.fastestLap}
+							featured={result.position === 1}
+							positionChange={result.positionChange}
+							dnf={result.dnf}
+						/>
+					</div>
+				{/each}
 			{/each}
 		</div>
 	</section>
@@ -304,6 +335,23 @@
 	 */
 	.result-grid__item {
 		min-width: 0;
+	}
+
+	/* Sama splitin vaihtumisen otsikkorivi kuin kisasivulla, ks. sen `.split-divider`-kommentti. */
+	.split-divider {
+		grid-column: 1 / -1;
+		margin-top: var(--space-2);
+		padding-block: var(--space-1);
+		font-size: var(--font-size-sm);
+		font-weight: 800;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--color-text-faint);
+		border-bottom: 1px solid var(--color-surface-border);
+	}
+
+	.split-divider:first-child {
+		margin-top: 0;
 	}
 
 	.standings-grid {

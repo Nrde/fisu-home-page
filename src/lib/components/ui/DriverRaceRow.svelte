@@ -20,6 +20,7 @@
 		points,
 		gapDisplay,
 		positionChange,
+		split = null,
 		win = false,
 		podium = false,
 		pole = false,
@@ -31,6 +32,16 @@
 		points: number;
 		gapDisplay?: string;
 		positionChange?: number;
+		/**
+		 * Taitotasosplitti jonka kuljettaja ajoi tässä kisassa — UUSI
+		 * 27.9.2026, ks. mappers.ts:n `DriverCareerRace.split`-kommentti.
+		 * `null` (oletus) normaalilla kisalla, ei näytetä tällöin mitään.
+		 * Ei vaikuta rivien järjestykseen tällä sivulla (kuljettajan omat
+		 * kisat näytetään aina aikajärjestyksessä) — pelkkä läpinäkyvyys:
+		 * kertoo ettei "P1" tarkoita koko kentän voittoa jos kisa oli
+		 * jaettu splitteihin.
+		 */
+		split?: number | null;
 		win?: boolean;
 		podium?: boolean;
 		pole?: boolean;
@@ -88,6 +99,11 @@
 					</span>
 				{/if}
 			</span>
+		{/if}
+	{/snippet}
+	{#snippet extra()}
+		{#if split !== null}
+			Split {split}
 		{/if}
 	{/snippet}
 </ListRow>

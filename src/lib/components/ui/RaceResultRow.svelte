@@ -31,6 +31,14 @@
 	 *   (`meta`) ja `bestLapTime` (`metaSecondary`) pysyvät SAMALLA
 	 *   rivillä kuin ennenkin (ListRow:n oma `list-row__row--secondary`),
 	 *   auto omalla koko levyisellä rivillään sen alla.
+	 * - `split` (UUSI 27.9.2026, käyttäjän pyyntö taitotasosplittien
+	 *   käyttöönotosta): näytetään SAMALLA `extra`-rivillä auton kanssa
+	 *   ("Split 2 · BMW M3 GT4") — molemmat ovat lisätietoa jotka eivät
+	 *   kilpaile huomiosta sijoitus/nimi/aikaero-rivien kanssa. Rivien
+	 *   JÄRJESTYS koko listassa (splitti 1 ensin, sitten splitti 2, jne.)
+	 *   ei ole tämän komponentin vastuulla — se ratkaistaan mappers.ts:n
+	 *   `compareBySplitThenPosition`:lla ENNEN kuin rivit päätyvät tänne,
+	 *   ks. myös +page.svelte:n splitti-rajan otsikkorivi.
 	 */
 	import ListRow from './ListRow.svelte';
 
@@ -41,6 +49,7 @@
 		gapDisplay,
 		bestLapTime,
 		carName,
+		split = null,
 		fastestLap = false,
 		featured = false,
 		positionChange,
@@ -72,6 +81,15 @@
 		 * kanssa.
 		 */
 		carName?: string;
+		/**
+		 * Taitotasosplitti jonka kuljettaja ajoi tässä kisassa — UUSI
+		 * 27.9.2026, ks. mappers.ts:n `RaceResultEntry.split`-kommentti.
+		 * `null` (oletus) normaalilla kisalla — ei näytetä mitään tällöin.
+		 * Näytetään `extra`-rivillä auton kanssa, koska molemmat ovat
+		 * lisätietoa eivätkä kilpaile huomiosta position/nimi/aikaero-
+		 * rivien kanssa.
+		 */
+		split?: number | null;
 		/** Ajoi KOKO KISAN nopeimman kierroksen (eri asia kuin oma bestLapTime) */
 		fastestLap?: boolean;
 		featured?: boolean;
@@ -121,6 +139,12 @@
 		{/if}
 	{/snippet}
 	{#snippet extra()}
+		{#if split !== null}
+			Split {split}
+		{/if}
+		{#if split !== null && carName}
+			·
+		{/if}
 		{#if carName}
 			{carName}
 		{/if}

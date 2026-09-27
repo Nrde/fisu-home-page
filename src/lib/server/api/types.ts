@@ -361,6 +361,19 @@ export interface RawRaceResultDriver {
 	points?: number | string;
 	/** Ajoi KOKO KISAN nopeimman kierroksen — API:n antama valmis totuusarvo (22.9.2026 alkaen, ks. RawRaceResultResponse-kommentti), EI enää päätelty. */
 	fastestLap?: boolean;
+	/**
+	 * LISÄTTY 2026-09-27 — kertoo mihin taitotasosplittiin kuljettaja
+	 * kuului, jos kisa oli jaettu useampaan erikseen ajettuun splittiin
+	 * (simracing.fi:n omat tabit esim. "Split 1 Lähtö 2"). `null` normaalilla
+	 * kisalla (myös "sprintti + päälähtö" -formaatti EI ole splitti, saa
+	 * silti `null`:n). KUN `split` ei ole `null`: `position`/`points` ovat
+	 * JO valmiiksi TÄMÄN splitin sisäisiä — ÄLÄ vertaa niitä eri splittien
+	 * kuljettajien kesken yhtenä listana, splitin 1 P1 ja splitin 3 P1 ovat
+	 * ERI kisoja eri pisteasteikoilla. Kuljettaja esiintyy vain omassa
+	 * splitissään (ei duplikaatteja). API EI (vielä) anna valmiiksi
+	 * laskettua yhdistettyä sijoitusta koko kisalle splittien yli.
+	 */
+	split: number | null;
 }
 
 /**
@@ -399,6 +412,8 @@ export interface RawDriverCareerRace {
 	pole: boolean;
 	fastestLap: boolean;
 	dnf: boolean;
+	/** LISÄTTY 2026-09-27 — sama merkitys kuin `RawRaceResultDriver.split`:ssä, ks. sen kommentti. */
+	split: number | null;
 }
 
 /** Sama kenttäjoukko sekä kausikohtaisessa (`RawDriverCareerSeason.stats`) että urakohtaisessa (`RawDriverCareerResponse.data.careerStats`) tilastossa. */

@@ -71,6 +71,7 @@
 								points={race.points}
 								gapDisplay={race.gapDisplay}
 								positionChange={race.positionChange}
+								split={race.split}
 								win={race.win}
 								podium={race.podium}
 								pole={race.pole}

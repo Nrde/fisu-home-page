@@ -51,14 +51,43 @@ interface WithDisplayPosition {
  * vastuulla lajitella `position`:in mukaan ENNEN tätä). Yleiskäyttöinen
  * — sekä sarjataulukko että yksittäisen kisan tulokset voivat jakaa
  * sijoituksia, joten molemmat käyttävät tätä samaa funktiota.
+ *
+ * PÄIVITYS (27.9.2026, `split`-kenttä käyttöön): `split` on VALINNAINEN
+ * geneerisessä rajoitteessa, koska sarjataulukolla (`SeasonStanding`) ei
+ * ole sitä lainkaan — kahden rivin katsotaan jakavan sijoituksen (`"="`)
+ * VAIN jos NIIN `position` ETTÄ `split` (`?? null` normalisoituna) täsmäävät.
+ * Ilman tätä splitin 1 P1 ja splitin 3 P1 näyttäisivät virheellisesti
+ * tasapeliltä, vaikka ne ovat eri kisoja eri pisteasteikoilla (ks.
+ * types.ts:n `RawRaceResultDriver.split`-kommentti).
  */
-function computeDisplayPositions<T extends { position: number }>(
+function computeDisplayPositions<T extends { position: number; split?: number | null }>(
 	items: T[]
 ): (T & WithDisplayPosition)[] {
-	return items.map((item, index) => ({
-		...item,
-		displayPosition: index > 0 && items[index - 1].position === item.position ? '=' : String(item.position)
-	}));
+	return items.map((item, index) => {
+		const prev = items[index - 1];
+		const isTie = index > 0 && prev.position === item.position && (prev.split ?? null) === (item.split ?? null);
+		return {
+			...item,
+			displayPosition: isTie ? '=' : String(item.position)
+		};
+	});
+}
+
+/**
+ * Lajittelee ENSISIJAISESTI `split`:n mukaan (pienin ensin, `null` VIIMEISENÄ
+ * — käytännössä tämä ei koskaan törmää `null`:iin muiden kanssa samassa
+ * listassa, koska joko KAIKKI kuljettajat ovat `split: null` tai KUKAAN ei
+ * ole, ks. types.ts:n kommentti), TOISSIJAISESTI `position`:in mukaan.
+ * Normaalilla kisalla (kaikki `split: null`) tämä käyttäytyy TÄSMÄLLEEN
+ * samoin kuin pelkkä `position`-lajittelu ennen tätä muutosta — käyttäjän
+ * pyyntö 27.9.2026: "split 1 drivers should always be before split 2
+ * drivers etc.".
+ */
+function compareBySplitThenPosition(a: { split: number | null; position: number }, b: { split: number | null; position: number }): number {
+	const splitA = a.split ?? Number.POSITIVE_INFINITY;
+	const splitB = b.split ?? Number.POSITIVE_INFINITY;
+	if (splitA !== splitB) return splitA - splitB;
+	return a.position - b.position;
 }
 
 export interface SeasonStanding extends WithDisplayPosition {
@@ -361,6 +390,19 @@ export interface RaceResultEntry extends WithDisplayPosition {
 	 * pyynnöstä, koska autoresoluutio on täysin valinnainen lisähaku.
 	 */
 	car?: Car;
+	/**
+	 * LISÄTTY 27.9.2026, käyttäjän pyynnöstä ("split info... should be
+	 * used when deciding the order for the drivers"). `null` normaalilla
+	 * kisalla. Kun ei-`null`: `position`/`points`/`gapDisplay` ovat JO
+	 * TÄMÄN splitin sisäisiä — ÄLÄ vertaile niitä eri splitin kuljettajien
+	 * kanssa yhtenä listana (ks. types.ts:n `RawRaceResultDriver.split`-
+	 * kommentti). `results`-taulukko on JÄRJESTETTY `split`:n mukaan ensin
+	 * (ks. `compareBySplitThenPosition`), joten UI voi näyttää "splitti
+	 * vaihtuu"-rajan aina kun tämä kenttä muuttuu edelliseen riviin
+	 * verrattuna PERÄKKÄISESSÄ listassa — ei tarvitse erikseen kysyä montako
+	 * splittiä kisassa on, se selviää `results`:n eri `split`-arvoista.
+	 */
+	split: number | null;
 }
 
 export interface LatestRaceResult {
@@ -458,7 +500,8 @@ function normalizeDriverRow(
 		// API:n valmis totuusarvo 22.9.2026 alkaen, ks. RaceResultEntry.fastestLap-kommentti.
 		fastestLap: raw.fastestLap ?? false,
 		positionChange: normalizePositionChange(raw),
-		dnf: normalizeDnf(raw)
+		dnf: normalizeDnf(raw),
+		split: raw.split ?? null
 	};
 }
 
@@ -513,7 +556,7 @@ export function mapLatestRaceResult(raceId: number, response: RawRaceResultRespo
 	const results = Object.entries(response.data.drivers)
 		.map(([driverKey, raw]) => normalizeDriverRow(driverKey, raw))
 		.filter((entry): entry is Omit<RaceResultEntry, 'displayPosition'> => entry !== undefined)
-		.sort((a, b) => a.position - b.position);
+		.sort(compareBySplitThenPosition);
 
 	return {
 		raceId,
@@ -1010,6 +1053,15 @@ export interface DriverCareerRace {
 	pole: boolean;
 	fastestLap: boolean;
 	dnf: boolean;
+	/**
+	 * LISÄTTY 27.9.2026 — sama merkitys kuin `RaceResultEntry.split`:ssä.
+	 * Tällä sivulla EI vaikuta järjestykseen (yhden kuljettajan omat kisat
+	 * näytetään aina aikajärjestyksessä, ei kilpasijoituksena muihin
+	 * verrattuna) — vain kertoo että TÄMÄN kisan `position`/`points` olivat
+	 * splitin sisäisiä, ei koko kentän, jottei kukaan tulkitse "P1":tä
+	 * väärin koko kisan voitoksi kun se oli vain oman splitin voitto.
+	 */
+	split: number | null;
 }
 
 /** Sama kenttäjoukko kausi- ja urakohtaisille tilastoille, ks. RawDriverCareerStats-kommentti types.ts:ssä. `null`-arvot muunnetaan `undefined`:ksi komponenttien props-rajapinnan mukaisesti. */
@@ -1070,7 +1122,8 @@ function mapDriverCareerRace(raw: RawDriverCareerRace): DriverCareerRace {
 		podium: raw.podium,
 		pole: raw.pole,
 		fastestLap: raw.fastestLap,
-		dnf: raw.dnf
+		dnf: raw.dnf,
+		split: raw.split ?? null
 	};
 }
 
