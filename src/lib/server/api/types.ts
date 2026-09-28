@@ -589,3 +589,57 @@ export interface RawHallOfFameResponse {
 	intro: string | null;
 	data: RawHallOfFameEntry[];
 }
+
+/**
+ * GET /cache/race_chart_data.json — UUSI 28.9.2026, käyttäjän liittämä
+ * esimerkkivastaus. Kuljettajien reittauksen (Elo-tyyppinen luku) kehitys
+ * kisa kisalta, "rating race" -pylväsanimaatiota ja tavallista sijoitus-
+ * listaa varten (ks. mappers.ts:n `mapRaceChartData` ja RaceChart.svelte).
+ *
+ * HUOM (TÄRKEÄ POIKKEUS client.ts:n konventiosta): tämä EI ole
+ * `{ success, data }` -kääreessä lainkaan — se on VALMIIKSI LASKETTU,
+ * itsenäinen JSON-tiedosto `/cache/`-polusta (eri luonne kuin muu API,
+ * ei tietokantakysely per pyyntö). `client.ts`:n `fetchRaceChartData`
+ * käyttää siis suoraa `apiFetch`ia (ei `apiFetchEnvelope`ia), sama
+ * periaate kuin `fetchHallOfFame`/`fetchDriverCareer`:ssa mutta VIELÄKIN
+ * suorempi — TÄMÄ vastaus ON jo `RawRaceChartResponse` sellaisenaan.
+ *
+ * `drivers`-taulukon oma INDEKSI (ei `id`-kenttä) on se "driverIndex" jota
+ * `frames[].standings` käyttää — käyttäjän oma selitys: "Its position in
+ * this array is that driver's driverIndex, used everywhere below instead
+ * of repeating the id string." `id` on silti mukana jokaisella kuljettajalla
+ * (sama arvoavaruus kuin `/kuljettajat/[driverId]`:n reittiparametrissa),
+ * hyödyllinen jos listalta halutaan linkittää kuljettajan omalle sivulle.
+ */
+export interface RawRaceChartDriver {
+	id: string;
+	name: string;
+}
+
+/**
+ * `[driverIndex, rating]` — `driverIndex` viittaa `RawRaceChartResponse.
+ * drivers`:n TAULUKKOINDEKSIIN (EI `id`-kenttään). Sijoitus (rank) EI ole
+ * erillinen kenttä täällä — se on tämän parin oma indeksi `standings`-
+ * taulukossa (indeksi 0 = 1. sija), ks. `mapRaceChartData`.
+ */
+export type RawRaceChartStanding = [driverIndex: number, rating: number];
+
+/**
+ * Yksi kisa aikajärjestyksessä — `frames[i]` ON kisa numero `i + 1`, ei
+ * erillistä kierrosnumerokenttää. `standings` on VALMIIKSI järjestetty
+ * sijoituksen mukaan (ks. `RawRaceChartStanding`-kommentti). Kuljettaja
+ * esiintyy framessa vasta ensimmäisen kisansa jälkeen — framet EIVÄT siis
+ * ole yhtä pitkiä (käyttäjän esimerkki: 4 kuljettajaa framessa 1, 5
+ * framessa 2 kun viides ajoi ensimmäisen kisansa).
+ */
+export interface RawRaceChartFrame {
+	title: string;
+	standings: RawRaceChartStanding[];
+}
+
+export interface RawRaceChartResponse {
+	drivers: RawRaceChartDriver[];
+	/** Sama kuin `frames.length` — ei käytetä UI:ssa erikseen, mutta osa oikeaa vastausta. */
+	totalFrames: number;
+	frames: RawRaceChartFrame[];
+}

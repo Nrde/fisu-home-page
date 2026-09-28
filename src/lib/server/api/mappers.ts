@@ -21,6 +21,7 @@ import type {
 	RawLeaderboardEntry,
 	RawOrganiserSummaryResponse,
 	RawRaceCarsResponse,
+	RawRaceChartResponse,
 	RawRaceListEntry,
 	RawRaceListResponse,
 	RawRaceResultDriver,
@@ -1512,4 +1513,55 @@ export function raceCarsUnion(resolution: RaceCarResolution): Car[] {
 	for (const car of resolution.byDriverId.values()) byId.set(car.id, car);
 	if (resolution.raceWideCar) byId.set(resolution.raceWideCar.id, resolution.raceWideCar);
 	return [...byId.values()];
+}
+
+/**
+ * Kuljettajien reittauksen kehitys (rating race) — UUSI 28.9.2026,
+ * käyttäjän pyyntö. Yksi rivi `RawRaceChartFrame.standings`:in [driverIndex,
+ * rating] -parista, ratkaistuna täydeksi näyttöriviksi: nimi haetaan
+ * `drivers[driverIndex]`:stä (ks. types.ts:n RawRaceChartDriver-kommentti,
+ * "driverIndex" on TAULUKKOINDEKSI, ei `id`-kenttä), `rank` on parin oma
+ * indeksi `standings`-taulukossa + 1 (EI erillinen kenttä API:ssa).
+ */
+export interface RaceChartStanding {
+	/** `drivers`-taulukon indeksi — VAKAA tunniste TÄMÄN datasetin sisällä (sama kuljettaja = sama indeksi joka framessa), käytetään `{#each}`-avaimena ja väriarvontaan. */
+	driverIndex: number;
+	/** Kuljettajan OMA id (sama arvoavaruus kuin `/kuljettajat/[driverId]`) — linkitystä varten, EI käytetä avaimena koska se on merkkijono API:ssa. */
+	driverId: number;
+	name: string;
+	rank: number;
+	rating: number;
+}
+
+export interface RaceChartFrame {
+	title: string;
+	standings: RaceChartStanding[];
+}
+
+export interface RaceChartData {
+	frames: RaceChartFrame[];
+	/** `drivers.length` — kaikki datasetissä KOSKAAN esiintyvät kuljettajat, EI saman kuin minkään yksittäisen framen kuljettajamäärä (framet kasvavat, ks. types.ts:n RawRaceChartFrame-kommentti). */
+	totalDrivers: number;
+}
+
+export function mapRaceChartData(raw: RawRaceChartResponse): RaceChartData {
+	return {
+		totalDrivers: raw.drivers.length,
+		frames: raw.frames.map((frame) => ({
+			title: frame.title,
+			standings: frame.standings.map(([driverIndex, rating], index) => {
+				const driver = raw.drivers[driverIndex];
+				return {
+					driverIndex,
+					driverId: Number(driver?.id),
+					// Puuttuva kuljettaja (virheellinen driverIndex) EI kaada koko
+					// sivua — näytetään indeksi paikkaajana sen sijaan että rivi
+					// hävitettäisiin kokonaan (rank-numerointi pysyisi muuten rikki).
+					name: driver?.name ?? `Kuljettaja ${driverIndex}`,
+					rank: index + 1,
+					rating
+				};
+			})
+		}))
+	};
 }

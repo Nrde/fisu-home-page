@@ -32,6 +32,7 @@ import type {
 	RawHallOfFameResponse,
 	RawOrganiserSummaryResponse,
 	RawRaceCarsResponse,
+	RawRaceChartResponse,
 	RawRaceListResponse,
 	RawRaceResultResponse,
 	RawSeasonRacesResponse,
@@ -304,4 +305,16 @@ export async function fetchRaceCars(fetchFn: typeof fetch, seasonId: number, rac
 	const response = await apiFetch<RawRaceCarsResponse>(fetchFn, `/cars/race/${seasonId}/${raceId}`);
 	warnIfUnknownCarsSchemaVersion(response.carsSchemaVersion, `/cars/race/${seasonId}/${raceId}`);
 	return response;
+}
+
+/**
+ * Hakee kuljettajien reittauksen kehityshistorian (rating race) — UUSI
+ * 28.9.2026. HUOM: EI `{ success, data }` -kääreessä lainkaan (ks.
+ * types.ts:n `RawRaceChartResponse`-kommentti) — `apiFetch` palauttaa
+ * vastauksen SELLAISENAAN, ei tarvitse edes `apiFetchEnvelope`in kaltaista
+ * sisarusken­tän erottelua. `/cache/`-polku on TARKOITUKSELLA eri kuin
+ * muu API (valmiiksi laskettu tiedosto, ei tietokantakysely per pyyntö).
+ */
+export function fetchRaceChartData(fetchFn: typeof fetch) {
+	return apiFetch<RawRaceChartResponse>(fetchFn, `/cache/race_chart_data.json`);
 }
