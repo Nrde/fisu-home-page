@@ -281,7 +281,7 @@
 		left: 50%;
 		transform: translateX(-50%) rotate(-8deg);
 		transform-origin: center;
-		font-size: clamp(5rem, 3rem + 14cqi, 12rem);
+		font-size: clamp(5rem, 5rem + 14cqi, 16rem);
 		font-weight: 900;
 		letter-spacing: -0.03em;
 		line-height: 1;
