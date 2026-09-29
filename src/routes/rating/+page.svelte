@@ -26,12 +26,12 @@
 
 <svelte:head>
 	<title>Reittaus — FISU</title>
-	<meta name="description" content="Kuljettajien reittauksen kehitys kisa kisalta." />
+	<meta name="description" content="Kuljettajien rating kehitys kisa kisalta." />
 </svelte:head>
 
 <section class="page-grid section">
-	<h1 class="page-title">Reittaus</h1>
-	<p class="page-intro">Kuljettajien reittauksen (Elo-tyyppinen luku) kehitys kisa kisalta.</p>
+	<h1 class="page-title">Rating</h1>
+	<p class="page-intro">Kuljettajien kehitys kisa kisalta.</p>
 
 	<RaceChart frames={data.raceChart.frames} totalDrivers={data.raceChart.totalDrivers} />
 
@@ -47,7 +47,7 @@
 			{/each}
 		</ul>
 	{:else}
-		<p class="rating-list__empty">Ei vielä reittaustietoja.</p>
+		<p class="rating-list__empty">Ei vielä rating tietoja.</p>
 	{/if}
 </section>
 

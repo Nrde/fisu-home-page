@@ -16,6 +16,6 @@ export const load: PageServerLoad = async ({ fetch }) => {
 		return { raceChart };
 	} catch (err) {
 		if (err instanceof ApiError) throw err;
-		throw new ApiError(`Odottamaton virhe reittausdatan haussa: ${String(err)}`);
+		throw new ApiError(`Odottamaton virhe rating datan haussa: ${String(err)}`);
 	}
 };
