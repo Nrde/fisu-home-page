@@ -12,17 +12,37 @@
 	 * luotettavasti kaikissa selaimissa (Safari erityisen tunnettu tästä).
 	 * KORVATTU tavallisilla HTML-`<div>`-palkeilla, joiden `width`/`left`
 	 * asetetaan INLINE STYLE -arvoina (`%`) — täysin tavallinen, aina
-	 * toimiva CSS-siirtymä, ei SVG-erikoistapauksia. Sama muutos teki
-	 * MYÖS ulkoasun mittasuhteiden/paddingin säätämisestä (käyttäjän toinen
-	 * pyyntö) paljon suoraviivaisempaa kuin SVG-koordinaattien laskennasta.
+	 * toimiva CSS-siirtymä, ei SVG-erikoistapauksia.
 	 *
 	 * Sijoituksen VAIHTUMINEN (rivien järjestyksen uudelleenjärjestys)
 	 * animoidaan edelleen `animate:flip`:llä, mutta nyt PIENELLÄ VIIVEELLÄ
 	 * (`delay`) palkin pituuden siirtymään nähden — käyttäjän pyyntö
 	 * ("first the length then the position"): palkki ehtii kasvaa/kutistua
-	 * hetken ENNEN kuin rivit alkavat vaihtaa paikkaa, jolloin muutos on
-	 * helpompi seurata silmällä kuin jos molemmat tapahtuisivat täysin
-	 * samanaikaisesti.
+	 * hetken ENNEN kuin rivit alkavat vaihtaa paikkaa.
+	 *
+	 * PÄIVITYS (29.9.2026, ISO kierros — "seurattava kuljettaja" +
+	 * raahattava sijoitusikkuna): käyttäjän raportoima käytettävyysongelma
+	 * ("it's really difficult to follow one driver") ratkaistu KAHDELLA
+	 * yhteen pelaavalla osalla:
+	 *
+	 * 1) Kiinteät "1–15/16–30/..."-välilehdet KORVATTU jatkuvalla,
+	 *    raahattavalla "ikkunalla" (`.rank-slider`) koko sijoitusasteikon
+	 *    (1..totalDrivers) yli. Raidan TÄYTTYNYT osuus (vihreä) näyttää
+	 *    kuinka moni sijoitus on YLIPÄÄTÄÄN ratkaistu TÄSSÄ framessa —
+	 *    käyttäjän oma idea, ratkaisee myös aiemman "tyhjä välilehti"
+	 *    -ongelman visuaalisesti sen sijaan että sen huomaisi vasta
+	 *    klikattuaan tyhjän välilehden auki.
+	 * 2) Kuljettajahaku (`searchQuery`) + "seuranta" (`followedDriverIndex`):
+	 *    valittu kuljettaja korostetaan AINA kun hän on näkyvässä ikkunassa,
+	 *    JA ikkuna keskitetään AUTOMAATTISESTI hänen NYKYISEEN sijoitukseensa
+	 *    joka framen vaihdossa (`$effect` alempana) — tämä on se osa joka
+	 *    OIKEASTI ratkaisee käyttäjän ongelman, koska reittaus ei ole
+	 *    monotoninen (voi sekä nousta että laskea, käyttäjän oma huomio)
+	 *    eikä pelkkä korostus ilman automaattista ikkunan siirtoa riittäisi.
+	 *    Manuaalinen raahaus/klikkaus/nuolinäppäimet LOPETTAVAT seurannan
+	 *    (käyttäjä ottaa ohjat itse), koska automaattinen ikkunan siirto
+	 *    ja käyttäjän oma raahaus eivät voi olla voimassa yhtä aikaa
+	 *    riitelemättä keskenään.
 	 */
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
@@ -31,48 +51,115 @@
 	let {
 		frames,
 		totalDrivers,
-		batchSize = 15
+		windowSize = 15
 	}: {
 		frames: RaceChartFrame[];
 		totalDrivers: number;
 		/**
-		 * Montako kuljettajaa näytetään kerrallaan yhdellä "X–Y"-välilehdellä
-		 * (käyttäjän pyyntö 29.9.2026: pelkät numerot, ei "Sijat"-sanaa) —
-		 * kaavio pysyy luettavana vaikka kuljettajia olisi kymmeniä.
-		 * PÄIVITYS (29.9.2026, käyttäjän huomio: "on my 1080 screen I only
-		 * see 15 drivers at a time"): oletusarvo pudotettu 20:stä 15:een —
-		 * 20 riviä ei mahtunut kokonaan näkyviin 1080p-näytöllä ilman
-		 * sivun vierittämistä, 15 mahtuu. Tämä on TIETOINEN kompromissi
-		 * (enemmän välilehtiä isolle kuljettajamäärälle) sen sijaan että
-		 * rivit tehtäisiin niin ahtaiksi ettei nimi/palkki/lukema enää
-		 * mahtuisi luettavasti — kutsuja voi silti antaa oman arvon jos
-		 * haluaa toisen kompromissin.
+		 * Montako kuljettajaa näkyy kerrallaan raahattavan sijoitusikkunan
+		 * sisällä. PÄIVITYS (29.9.2026): oletusarvo 15, koska käyttäjän oma
+		 * mittaus ("on my 1080 screen I only see 15 drivers at a time")
+		 * osoitti sen olevan mikä mahtuu 1080p-näytölle ilman sivun
+		 * vierittämistä. Nimetty uudelleen `batchSize`:sta `windowSize`:ksi
+		 * kiinteiden välilehtien poistuessa — kuvaa nyt jatkuvan ikkunan
+		 * KOKOA, ei enää sivun kokoa paginoinnissa.
 		 */
-		batchSize?: number;
+		windowSize?: number;
 	} = $props();
 
 	let currentFrameIndex = $state(0);
 	let isPlaying = $state(false);
 	let playbackSpeed = $state(1000); // ms per frame
-	let activeBatchIndex = $state(0); // 0 = sijat 1-20, 1 = 21-40, jne.
+
+	// 1-perustainen sijoitus jossa näkyvä ikkuna ALKAA (esim. 1 = sijat 1..windowSize).
+	let windowStart = $state(1);
+	let followedDriverIndex = $state<number | undefined>(undefined);
+	let searchQuery = $state('');
+
+	let trackEl: HTMLDivElement | undefined = $state();
+	let dragStartClientX = 0;
+	let dragStartWindowStart = 1;
+	let dragTrackWidthPx = 1;
 
 	let intervalId: ReturnType<typeof setInterval> | undefined;
 
 	const totalFrames = $derived(frames.length);
 	const currentFrame = $derived<RaceChartFrame>(frames[currentFrameIndex] ?? { standings: [], title: '' });
 
-	const totalBatches = $derived(Math.max(1, Math.ceil(totalDrivers / batchSize)));
-	const currentRangeStart = $derived(activeBatchIndex * batchSize + 1);
-	const currentRangeEnd = $derived(Math.min((activeBatchIndex + 1) * batchSize, totalDrivers));
+	const effectiveWindowSize = $derived(Math.max(1, Math.min(windowSize, totalDrivers)));
+	const maxWindowStart = $derived(Math.max(1, totalDrivers - effectiveWindowSize + 1));
+	const windowEnd = $derived(Math.min(windowStart + effectiveWindowSize - 1, totalDrivers));
 
 	const visibleStandings = $derived(
-		currentFrame.standings.filter((driver) => driver.rank >= currentRangeStart && driver.rank <= currentRangeEnd)
+		currentFrame.standings.filter((driver) => driver.rank >= windowStart && driver.rank <= windowEnd)
 	);
+
+	// Kuinka moni sijoitus on YLIPÄÄTÄÄN ratkaistu tässä framessa — raidan täyttymän perusta.
+	const filledPercent = $derived(totalDrivers > 0 ? (currentFrame.standings.length / totalDrivers) * 100 : 0);
+	const windowLeftPercent = $derived(totalDrivers > 0 ? ((windowStart - 1) / totalDrivers) * 100 : 0);
+	const windowWidthPercent = $derived(totalDrivers > 0 ? (effectiveWindowSize / totalDrivers) * 100 : 100);
 
 	// Vähintään 1500 pohjana, jotta yksittäisen kisan alun (kaikki lähellä
 	// oletusreittausta) palkit eivät venähdä koko leveydelle merkityksettömän
-	// pienestä eroista — sama periaate kuin alkuperäisessä versiossa.
+	// pienestä eroista.
 	const maxRating = $derived(Math.max(...currentFrame.standings.map((s) => s.rating), 1500));
+
+	/**
+	 * Kaikki datasetissä KOSKAAN esiintyvät kuljettajat nimineen, koottu
+	 * JOKAISESTA framesta (ei vain nykyisestä/viimeisestä) — kuljettajahaun
+	 * pitää löytää myös se joka ei ole vielä ajanut TÄTÄ nimenomaista
+	 * kisaa. Lasketaan KERRAN (`frames` on staattinen propsi sivulatauksen
+	 * jälkeen), ei joka framen vaihdossa uudelleen.
+	 */
+	const allDrivers = $derived.by(() => {
+		const byIndex = new Map<number, string>();
+		for (const frame of frames) {
+			for (const standing of frame.standings) {
+				byIndex.set(standing.driverIndex, standing.name);
+			}
+		}
+		return [...byIndex.entries()].map(([driverIndex, name]) => ({ driverIndex, name }));
+	});
+
+	const searchResults = $derived.by(() => {
+		const query = searchQuery.trim().toLowerCase();
+		if (!query) return [];
+		return allDrivers.filter((driver) => driver.name.toLowerCase().includes(query)).slice(0, 8);
+	});
+
+	const followedDriverName = $derived(allDrivers.find((driver) => driver.driverIndex === followedDriverIndex)?.name);
+
+	/**
+	 * Seuratun kuljettajan TARKKA sijoitus tässä framessa — UUSI 29.9.2026,
+	 * käyttäjän pyyntö ("something like 120/155"). `undefined` jos hän ei
+	 * ole vielä ajanut TÄTÄ kisaa (ei sijoitusta tässä framessa) — näytetään
+	 * silloin "–" arvaamisen sijaan.
+	 */
+	const followedDriverRank = $derived(
+		followedDriverIndex === undefined
+			? undefined
+			: currentFrame.standings.find((standing) => standing.driverIndex === followedDriverIndex)?.rank
+	);
+
+	/** Seuratun kuljettajan sijainti koko `.rank-slider__track`:in leveydellä — ERI asia kuin itse ikkuna (`.rank-slider__window`), tarkka piste ei aluetta. */
+	const followedMarkerLeftPercent = $derived(
+		followedDriverRank !== undefined && totalDrivers > 0 ? ((followedDriverRank - 1) / totalDrivers) * 100 : undefined
+	);
+
+	/**
+	 * Seurannan YDIN: kun kuljettajaa seurataan, keskitetään ikkuna hänen
+	 * NYKYISEEN sijoitukseensa AINA kun frame vaihtuu (myös silloin kun
+	 * `currentFrameIndex` pysyy samana mutta `followedDriverIndex` juuri
+	 * asetettiin). Jos kuljettajalla ei ole sijoitusta TÄSSÄ framessa
+	 * (ei ole vielä ajanut), ikkuna jätetään ENNALLEEN — ei arvata mihin
+	 * hän "todennäköisesti" sijoittuisi.
+	 */
+	$effect(() => {
+		if (followedDriverIndex === undefined) return;
+		const rank = currentFrame.standings.find((standing) => standing.driverIndex === followedDriverIndex)?.rank;
+		if (rank === undefined) return;
+		windowStart = clampWindowStart(rank - Math.floor(effectiveWindowSize / 2));
+	});
 
 	$effect(() => {
 		if (isPlaying) {
@@ -97,7 +184,71 @@
 		isPlaying = !isPlaying;
 	}
 
-	/** Johdonmukainen väri per kuljettaja — `driverIndex` on VAKAA koko datasetin ajan (ks. mappers.ts:n RaceChartStanding-kommentti), joten sama kuljettaja saa aina saman värin framesta toiseen. */
+	function clampWindowStart(value: number): number {
+		return Math.min(Math.max(1, Math.round(value)), maxWindowStart);
+	}
+
+	function followDriver(driverIndex: number) {
+		followedDriverIndex = driverIndex;
+		searchQuery = '';
+	}
+
+	function unfollow() {
+		followedDriverIndex = undefined;
+	}
+
+	/**
+	 * Raahauksen (ja klikkauksen/nuolinäppäinten) aloitus lopettaa
+	 * seurannan AINA — käyttäjä ottaa ohjat itse, automaattinen
+	 * uudelleenkeskitys (ks. `$effect` yllä) ja käsinraahaus eivät voi
+	 * olla voimassa samaan aikaan riitelemättä.
+	 */
+	function stopFollowingForManualControl() {
+		followedDriverIndex = undefined;
+	}
+
+	function onThumbPointerDown(event: PointerEvent) {
+		event.preventDefault();
+		(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+		dragStartClientX = event.clientX;
+		dragStartWindowStart = windowStart;
+		dragTrackWidthPx = trackEl?.getBoundingClientRect().width ?? 1;
+		stopFollowingForManualControl();
+	}
+
+	function onThumbPointerMove(event: PointerEvent) {
+		if (event.buttons === 0) return;
+		const deltaPx = event.clientX - dragStartClientX;
+		const deltaRanks = (deltaPx / dragTrackWidthPx) * totalDrivers;
+		windowStart = clampWindowStart(dragStartWindowStart + deltaRanks);
+	}
+
+	function onThumbKeyDown(event: KeyboardEvent) {
+		if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') {
+			windowStart = clampWindowStart(windowStart - 1);
+		} else if (event.key === 'ArrowRight' || event.key === 'ArrowUp') {
+			windowStart = clampWindowStart(windowStart + 1);
+		} else if (event.key === 'Home') {
+			windowStart = 1;
+		} else if (event.key === 'End') {
+			windowStart = maxWindowStart;
+		} else {
+			return;
+		}
+		event.preventDefault();
+		stopFollowingForManualControl();
+	}
+
+	/** Klikkaus raidan TYHJÄÄN kohtaan (ei kahvaan) hyppää ikkunan sinne, keskitettynä klikkauskohtaan. */
+	function onTrackClick(event: MouseEvent) {
+		if (event.target !== trackEl || !trackEl) return;
+		const rect = trackEl.getBoundingClientRect();
+		const clickRatio = (event.clientX - rect.left) / rect.width;
+		windowStart = clampWindowStart(clickRatio * totalDrivers - effectiveWindowSize / 2);
+		stopFollowingForManualControl();
+	}
+
+	/** Johdonmukainen väri per kuljettaja — `driverIndex` on VAKAA koko datasetin ajan, joten sama kuljettaja saa aina saman värin framesta toiseen. */
 	function getDriverColor(driverIndex: number): string {
 		const hue = (driverIndex * 47) % 360;
 		return `hsl(${hue}, 65%, 50%)`;
@@ -105,14 +256,9 @@
 
 	/**
 	 * `frame.title` on API:sta valmiiksi yhdistetty merkkijono (esim.
-	 * "FiSU S9 - Ahvenisto", "Season 3 - Red Bull Ring") — käyttäjän oma
-	 * havainto 29.9.2026: kausiosa ja ratanimi mahtuvat lähes aina samalle
-	 * riville MUTTA pisimmät osakilpailujen nimet rikkovat layoutin
-	 * kahdelle riville epäsiististi. Käyttäjän oma sääntö nimen jakoon:
-	 * ratanimi on VIIMEISEN "-"-merkin JÄLKEINEN osa (jos nimessä on
-	 * useampia "-"-merkkejä, käytetään VIIMEISTÄ), kausiosa on kaikki
-	 * SITÄ ENNEN. `undefined` race jos merkkiä ei löydy lainkaan (koko
-	 * title näytetään tällöin kausiosana, ei arvata mitään).
+	 * "FiSU S9 - Ahvenisto") — ratanimi on VIIMEISEN "-"-merkin JÄLKEINEN
+	 * osa (useampi "-": käytetään VIIMEISTÄ), kausiosa kaikki sitä ennen.
+	 * `undefined` race jos merkkiä ei löydy lainkaan.
 	 */
 	function splitFrameTitle(title: string): { season: string; race: string | undefined } {
 		const lastDashIndex = title.lastIndexOf('-');
@@ -139,53 +285,86 @@
 		{/if}
 	</header>
 
-	{#if totalBatches > 1}
-		<div class="batch-tabs">
-			{#each Array(totalBatches) as _, idx}
-				{@const start = idx * batchSize + 1}
-				{@const end = Math.min((idx + 1) * batchSize, totalDrivers)}
-				<button type="button" class="tab-btn" class:active={activeBatchIndex === idx} onclick={() => (activeBatchIndex = idx)}>
-					{start}–{end}
-				</button>
-			{/each}
+	<div class="follow-bar">
+		{#if followedDriverIndex !== undefined}
+			<span class="follow-bar__badge">
+				Seurataan: <strong>{followedDriverName}</strong>
+				<span class="follow-bar__rank">
+					{followedDriverRank ?? '–'}/{currentFrame.standings.length}
+				</span>
+				<button type="button" class="follow-bar__unfollow" onclick={unfollow} aria-label="Lopeta seuranta">✕</button>
+			</span>
+		{:else}
+			<div class="follow-bar__search">
+				<input
+					type="text"
+					class="follow-bar__input"
+					placeholder="Etsi ja seuraa kuljettajaa…"
+					bind:value={searchQuery}
+					aria-label="Etsi kuljettaja seurattavaksi"
+				/>
+				{#if searchResults.length > 0}
+					<ul class="follow-bar__results">
+						{#each searchResults as driver (driver.driverIndex)}
+							<li>
+								<button type="button" onclick={() => followDriver(driver.driverIndex)}>{driver.name}</button>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			</div>
+		{/if}
+	</div>
+
+	<!--
+		Raahattava sijoitusikkuna — käyttäjän oma idea 29.9.2026, korvaa
+		aiemmat kiinteät "1–15/16–30/..."-välilehdet. Täyttynyt osuus
+		(vihreä) = kuinka moni sijoitus on ratkaistu TÄSSÄ framessa.
+	-->
+	<div class="rank-slider">
+		<div class="rank-slider__track" bind:this={trackEl} onclick={onTrackClick} role="presentation">
+			<div class="rank-slider__filled" style="width: {filledPercent}%"></div>
+			{#if followedMarkerLeftPercent !== undefined}
+				<!-- Seuratun kuljettajan TARKKA sijainti — pieni piste, EI sama asia kuin ikkuna-alue alla. -->
+				<div class="rank-slider__marker" style="left: {followedMarkerLeftPercent}%" aria-hidden="true"></div>
+			{/if}
+			<div
+				class="rank-slider__window"
+				style="left: {windowLeftPercent}%; width: {windowWidthPercent}%"
+				role="slider"
+				tabindex="0"
+				aria-valuemin={1}
+				aria-valuemax={maxWindowStart}
+				aria-valuenow={windowStart}
+				aria-label="Näkyvä sijoitusalue"
+				onpointerdown={onThumbPointerDown}
+				onpointermove={onThumbPointerMove}
+				onkeydown={onThumbKeyDown}
+			></div>
 		</div>
-	{/if}
+		<p class="rank-slider__label">Sijat {windowStart}–{windowEnd} / {totalDrivers}</p>
+	</div>
 
 	<div class="chart-viewport">
 		{#if visibleStandings.length === 0}
 			<!--
-				Käyttäjän huomio (29.9.2026): kaukaisemmat "Sijat X–Y" -välilehdet
-				(esim. 201-220) voivat olla TÄYSIN tyhjiä kauden alun kisoissa,
-				koska vain ajaneet kuljettajat saavat sijoituksen tässä framessa
-				— ei ole mitään "sijaa 210" ennen kuin 210 kuljettajaa on ajanut
-				edes yhden kisan. TARKOITUKSELLA ei täytetä tätä keksityillä
-				"kosmeettinen 0 reittaus" -riveillä kaikille vielä ajamattomille
-				kuljettajille (käyttäjän oma ehdotus, mutta hän itse epäröi sitä)
-				— se täyttäisi välilehden KYMMENILLÄ merkityksettömillä nolla-
-				palkeilla joka ikiselle vielä ajamattomalle kuljettajalle,
-				mikä tekisi näkymästä SEKAVAMMAN, ei selkeämmän. Selkeä
-				tyhjän tilan viesti on rehellisempi: näillä sijoilla ei
-				yksinkertaisesti ole vielä ketään.
+				Käyttäjän huomio (29.9.2026): kaukaisemmat sijoitukset voivat olla
+				TÄYSIN ratkaisematta kauden alun kisoissa, koska vain ajaneet
+				kuljettajat saavat sijoituksen tässä framessa. TARKOITUKSELLA ei
+				täytetä tätä keksityillä "kosmeettinen 0 reittaus" -riveillä —
+				se täyttäisi näkymän kymmenillä merkityksettömillä nollapalkeilla.
+				Raidan vihreä täyttymä (ks. `.rank-slider__filled`) kertoo jo
+				ETUKÄTEEN onko tällä ikkunalla mitään näytettävää.
 			-->
 			<p class="chart-empty">Kukaan ei ole vielä ajanut tälle sijavälille tässä kisassa.</p>
 		{:else}
 			<div class="bars">
 				{#each visibleStandings as driver (driver.driverIndex)}
-					<!--
-						BUGIKORJAUS (29.9.2026, käyttäjän raportoima: "palkit ovat nyt
-						liian pitkiä eivätkä mahdu niille varattuun laatikkoon"): kerroin
-						oli aiemmin 100 (täysi leveys korkeimmalle reittaukselle), jolloin
-						`.bar-row__rating`-teksti (asemoitu `left: {barWidth}%` + oma
-						leveytensä sen PÄÄLLE) työntyi `.bar-row__track`:in ULKOPUOLELLE
-						täydellä palkilla eikä mahtunut varattuun tilaan. Kerroin 80 jättää
-						AINA vähintään 20 % track:in leveydestä tekstille — sama
-						normalisointiperiaate kuin alkuperäisessä SVG-versiossa (joka
-						käytti kerrointa 70 vastaavasta syystä), vain säädetty tähän
-						div-pohjaiseen mittakaavaan.
-					-->
+					<!-- Kerroin 80 (ei 100): jättää AINA vähintään 20 % track:in leveydestä `.bar-row__rating`-tekstille, ettei se työnny ulos laatikosta täydellä palkilla. -->
 					{@const barWidth = Math.max(2, (driver.rating / maxRating) * 80)}
 					<div
 						class="bar-row"
+						class:bar-row--followed={driver.driverIndex === followedDriverIndex}
 						style="order: {driver.rank}"
 						animate:flip={{ duration: 500, delay: 150 }}
 						transition:fade={{ duration: 200 }}
@@ -204,12 +383,7 @@
 	</div>
 
 	<div class="controls">
-		<button
-			type="button"
-			class="play-btn"
-			aria-label={isPlaying ? 'Keskeytä toisto' : 'Toista'}
-			onclick={togglePlay}
-		>
+		<button type="button" class="play-btn" aria-label={isPlaying ? 'Keskeytä toisto' : 'Toista'} onclick={togglePlay}>
 			{isPlaying ? '⏸' : '▶'}
 		</button>
 
@@ -226,55 +400,18 @@
 <style>
 	.chart-container {
 		position: relative;
-		/* `.chart-watermark`:in `cqi`-fonttikoko viittaa TÄHÄN — kontaineri EI voi @container-kysyä omaa kokoaan, joten `container-type` on tässä (vanhemmassa), ei vesileimassa itsessään. */
 		container-type: inline-size;
 		width: 100%;
-		/*
-		 * Käyttäjän pyyntö 29.9.2026: laatikko lähemmäs headerin/sivun
-		 * `--content-max-width`:in (75rem) levyistä sisältöaluetta — oli
-		 * 960px (~80% siitä), nyt ~1080px (~90%).
-		 */
 		max-width: 1080px;
 		margin: 0 auto;
 		background: var(--color-surface);
 		color: var(--color-text);
 		border: 1px solid var(--color-surface-border);
-		/*
-		 * Käyttäjän pyyntö 29.9.2026 (kaksi kierrosta): ensin enemmän tilaa
-		 * reunoista yleisesti (kontrollit olivat kiinni laatikon reunassa),
-		 * sitten YLÄreunan padding pienemmäksi erikseen jotta otsikkorivi
-		 * istuu lähempänä laatikon yläreunaa — muut reunat pysyvät väljinä.
-		 */
 		padding: var(--space-4) var(--space-8) var(--space-8);
 		border-radius: var(--radius-lg);
-		/* Taustavesileiman (`.chart-watermark`, alempana) mahdollinen ylivuoto rajataan laatikon reunoihin. */
 		overflow: hidden;
 	}
 
-	/*
-	 * Himmeä "RATING"-taustateksti — UUSI 29.9.2026, käyttäjän pyyntö:
-	 * sivun oma otsikko+johdantoteksti (`/reittaus`-sivun `<h1>`/`<p>`)
-	 * vei turhaan pystytilaa sivulla jonka koko pointti on mahduttaa
-	 * mahdollisimman monta kaavion riviä näytölle — poistettu sieltä
-	 * kokonaan (ks. +page.svelte) ja korvattu TÄLLÄ: sama "brändäys" mutta
-	 * osana laatikon TAUSTAA, ei omaa riviään vievänä otsikkona. `aria-
-	 * hidden` + `pointer-events: none`, koska tämä on puhtaasti visuaalinen
-	 * koriste, ei sisältöä (sivun oikea otsikko on edelleen `<svelte:head>`
-	 * `<title>`:ssä, ks. +page.svelte).
-	 *
-	 * PÄIVITYS (29.9.2026, toinen kierros): käyttäjän palaute — väri/
-	 * himmeys OK sellaisenaan, mutta koko+sijainti eivät: alakulmassa se
-	 * osui `.controls`:in "form"-elementtien (play-nappi, aika-liukusäädin)
-	 * PÄÄLLE, mikä näytti sekavalta yhdistettynä oikeisiin käyttöliittymä-
-	 * elementteihin. Header-tekstien ALLA sen sijaan on käyttäjän mukaan
-	 * OK, koska tavallinen teksti (ei interaktiivisia "form"-objekteja)
-	 * lukee luontevasti himmeän ison taustatekstin päällä. UUSI sijainti:
-	 * keskitetty otsikon YLÄPUOLELLE/TAAKSE, KIERRETTYNÄ ("vasen puoli
-	 * alempana" — käyttäjän oma ehdotus) `rotate(-8deg)`:llä (negatiivinen
-	 * kulma kallistaa VASEMMAN reunan alas, OIKEAN ylös). Koko kasvatettu
-	 * SELVÄSTI (`cqi`-skaalattu, ks. `.chart-container`:in `container-type`)
-	 * niin että teksti on luettavissa VAIKKA se onkin muun sisällön alla.
-	 */
 	.chart-watermark {
 		position: absolute;
 		top: 0;
@@ -295,22 +432,9 @@
 	.chart-header {
 		position: relative;
 		z-index: 1;
-		/* Käyttäjän pyyntö 29.9.2026: enemmän tilaa otsikon ja numeronappien välillä, ne olivat kiinni toisissaan. */
-		margin-bottom: var(--space-8);
+		margin-bottom: var(--space-6);
 	}
 
-	/*
-	 * Käyttäjän pyyntö 29.9.2026: kauden nimi vasempaan yläkulmaan, "Kisa
-	 * N / M" samalle riville oikeaan reunaan — ei enää molempia samalla
-	 * rivillä peräkkäin (aiempi tapa venytti otsikkorivin liian pitkäksi
-	 * pisimmillä ratanimillä, ks. `splitFrameTitle`-kommentti script-lohkossa).
-	 * PÄIVITYS (29.9.2026, KOLMAS kierros): käyttäjä tarkensi ettei halunnut
-	 * tätä PIENEMMÄKSI kuin ratanimeä — päinvastoin, kaikkien kolmen
-	 * tekstin (kausi, kisalaskuri, ratanimi) PITÄISI olla SAMAA kokoa
-	 * (`--font-size-lg`). Aiempi `--font-size-xs` oli myös AITO bugi —
-	 * sitä muuttujaa ei ole olemassa tokens.css:ssä lainkaan (skaala alkaa
-	 * `sm`:stä), joten se ei koskaan tehnyt mitään tarkoitettua.
-	 */
 	.chart-header__top {
 		display: flex;
 		flex-wrap: wrap;
@@ -322,15 +446,6 @@
 		font-weight: 600;
 	}
 
-	/*
-	 * Ratanimi omalla korostusvärillään (käyttäjän pyyntö 29.9.2026: "voisi
-	 * olla esim. vihreällä, sinisellä tai muulla sopivalla värillä") —
-	 * `--color-info` valittu koska se on jo sivuston oma "aktiivinen/
-	 * korostettu" -aksenttiväri (sama sininen kuin mm. tämän komponentin
-	 * omat `.tab-btn.active`- ja linkkien värit), ei uusi väri pelkästään
-	 * tätä varten. Fonttikoko SAMA kuin `.chart-header__top`:issa (ks. sen
-	 * kommentti) — vain väri/paino erottavat ratanimen, ei enää koko.
-	 */
 	.chart-header__race {
 		margin-top: var(--space-1);
 		font-size: var(--font-size-lg);
@@ -338,33 +453,179 @@
 		color: var(--color-info);
 	}
 
-	.batch-tabs {
-		/* `position: relative; z-index: 1;` tässä ja `.chart-viewport`/`.controls`:issa
-		   alempana: takaa että nämä paatuvat AINA `.chart-watermark`:in (z-index: 0)
-		   YLÄPUOLELLE riippumatta CSS:n asemointi/paint-järjestyksen hienouksista
-		   (staattisesti asemoitu sisältö ja z-index:0 positioned-sisarus voivat
-		   muuten paatua yllättävässä järjestyksessä). */
+	/*
+	 * Kuljettajahaku/seurantapalkki — UUSI 29.9.2026, käyttäjän pyyntö
+	 * ("filter field to see or locate the followed driver"). Tulosluettelo
+	 * on yksinkertainen pudotuslista suoraan hakukentän alla, ei erillistä
+	 * ylimalkaista autocomplete-kirjastoa.
+	 */
+	.follow-bar {
 		position: relative;
-		z-index: 1;
-		display: flex;
-		gap: var(--space-2);
-		flex-wrap: wrap;
-		margin-bottom: var(--space-6);
+		z-index: 2;
+		margin-bottom: var(--space-4);
+		min-height: 2.25rem;
 	}
 
-	.tab-btn {
+	.follow-bar__search {
+		position: relative;
+		max-width: 20rem;
+	}
+
+	.follow-bar__input {
+		width: 100%;
 		background: var(--color-bg);
 		border: 1px solid var(--color-surface-border);
-		color: var(--color-text-muted);
-		padding: var(--space-1) var(--space-3);
+		color: var(--color-text);
+		padding: var(--space-2) var(--space-3);
 		border-radius: var(--radius-md);
 		font-size: var(--font-size-sm);
 	}
 
-	.tab-btn.active {
-		background: var(--color-info);
-		color: var(--color-bg);
-		border-color: var(--color-info);
+	.follow-bar__results {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		right: 0;
+		margin-top: var(--space-1);
+		background: var(--color-bg);
+		border: 1px solid var(--color-surface-border);
+		border-radius: var(--radius-md);
+		list-style: none;
+		padding: var(--space-1);
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+		box-shadow: 0 8px 24px color-mix(in oklch, black 40%, transparent);
+	}
+
+	.follow-bar__results button {
+		display: block;
+		width: 100%;
+		text-align: left;
+		padding: var(--space-1) var(--space-2);
+		border-radius: var(--radius-sm);
+		font-size: var(--font-size-sm);
+	}
+
+	.follow-bar__results button:hover {
+		background: var(--color-surface);
+	}
+
+	.follow-bar__badge {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-1) var(--space-3);
+		border-radius: var(--radius-full);
+		background: color-mix(in oklch, var(--color-warning) 16%, var(--color-surface));
+		border: 1px solid color-mix(in oklch, var(--color-warning) 32%, transparent);
+		font-size: var(--font-size-sm);
+	}
+
+	/*
+	 * Tarkka "sijoitus/ratkaistut"-lukema (esim. "120/155") — UUSI
+	 * 29.9.2026, käyttäjän pyyntö. PÄIVITETTY (sama päivä): nimittäjä on
+	 * `currentFrame.standings.length` (kuinka moni kuljettaja on
+	 * YLIPÄÄTÄÄN ratkaistu TÄSSÄ framessa), EI `totalDrivers` (koko
+	 * datasetin kuljettajamäärä) — käyttäjän oma perustelu: "compared to
+	 * the currently available drivers", eli sijoitus kertoo missä hän on
+	 * suhteessa NIIHIN jotka ovat jo ajaneet, ei koko historian kaikkiin
+	 * kuljettajiin (joista suurin osa ei ole vielä edes ajanut tätä kisaa
+	 * kauden alussa). Hillitympi kuin nimi, koska nimi on rivin pääasia.
+	 */
+	.follow-bar__rank {
+		color: var(--color-text-muted);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.follow-bar__unfollow {
+		color: var(--color-text-muted);
+		font-weight: 700;
+	}
+
+	.follow-bar__unfollow:hover {
+		color: var(--color-text);
+	}
+
+	/*
+	 * Raahattava sijoitusikkuna — UUSI 29.9.2026, käyttäjän oma idea,
+	 * korvaa aiemmat kiinteät "1–15/16–30/..."-välilehdet. `.rank-slider__
+	 * track` on koko 1..totalDrivers-asteikko, `__filled` näyttää kuinka
+	 * moni sijoitus on ratkaistu TÄSSÄ framessa, `__window` on itse
+	 * raahattava kahva (kokoinen `windowSize`, ks. script-lohko).
+	 */
+	.rank-slider {
+		position: relative;
+		z-index: 1;
+		margin-bottom: var(--space-6);
+	}
+
+	.rank-slider__track {
+		position: relative;
+		height: 1.75rem;
+		background: var(--color-bg);
+		border: 1px solid var(--color-surface-border);
+		border-radius: var(--radius-md);
+		cursor: pointer;
+		overflow: hidden;
+	}
+
+	.rank-slider__filled {
+		position: absolute;
+		inset-block: 0;
+		left: 0;
+		background: color-mix(in oklch, var(--color-success) 20%, transparent);
+		pointer-events: none;
+		transition: width 0.3s ease-out;
+	}
+
+	/*
+	 * Seuratun kuljettajan TARKKA sijainti track:illa — UUSI 29.9.2026,
+	 * käyttäjän pyyntö ("something like 120/155"). ERI asia kuin
+	 * `.rank-slider__window` (joka on ALUE, ikkunan koko) — tämä on yksi
+	 * PISTE, samalla lämpimällä värillä kuin seuratun kuljettajan
+	 * palkkikorostus (`.bar-row--followed`) ja `.follow-bar__badge`,
+	 * jotta ne kaikki lukevat samana "tämä on seurattu" -konseptina.
+	 * `z-index: 2` nostaa sen `.rank-slider__window`:in (joka voi peittää
+	 * sen alleen) YLÄPUOLELLE, jotta piste näkyy VAIKKA ikkuna olisi
+	 * juuri sen kohdalla.
+	 */
+	.rank-slider__marker {
+		position: absolute;
+		inset-block: -2px;
+		width: 3px;
+		transform: translateX(-50%);
+		background: var(--color-warning);
+		border-radius: var(--radius-full);
+		z-index: 2;
+		pointer-events: none;
+	}
+
+	.rank-slider__window {
+		position: absolute;
+		inset-block: 2px;
+		background: color-mix(in oklch, var(--color-info) 55%, transparent);
+		border: 1px solid var(--color-info);
+		border-radius: var(--radius-sm);
+		cursor: grab;
+		touch-action: none;
+		transition: left 0.3s ease-out;
+	}
+
+	.rank-slider__window:active {
+		cursor: grabbing;
+	}
+
+	.rank-slider__window:focus-visible {
+		outline: 2px solid var(--color-info);
+		outline-offset: 2px;
+	}
+
+	.rank-slider__label {
+		margin-top: var(--space-1);
+		font-size: var(--font-size-sm);
+		color: var(--color-text-faint);
+		text-align: right;
 	}
 
 	.chart-viewport {
@@ -390,6 +651,18 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-3);
+		border-radius: var(--radius-md);
+		transition: background-color var(--duration-fast) var(--ease-out-quart);
+	}
+
+	/* Seurattavan kuljettajan korostus — UUSI 29.9.2026, sama lämmin sävy kuin `.follow-bar__badge`:ssa, jotta ne lukevat samana konseptina. */
+	.bar-row--followed {
+		background: color-mix(in oklch, var(--color-warning) 12%, transparent);
+	}
+
+	.bar-row--followed .bar-row__name {
+		color: var(--color-warning);
+		font-weight: 800;
 	}
 
 	.bar-row__name {
@@ -408,12 +681,6 @@
 		height: 1.5rem;
 	}
 
-	/*
-	 * Tavallinen HTML/CSS-palkki SVG-`<rect>`:n sijaan (ks. script-lohkon
-	 * kommentti) — `width`-siirtymä toimii TÄSSÄ luotettavasti kaikissa
-	 * selaimissa, koska se on tavallinen prosenttiarvo tavallisella
-	 * lohkoelementillä, ei SVG:n geometria-attribuutti.
-	 */
 	.bar-row__fill {
 		position: absolute;
 		inset-block: 0;
@@ -422,13 +689,11 @@
 		transition: width 0.5s ease-out;
 	}
 
-	/* `left`-siirtymä SAMALLA kestolla kuin `.bar-row__fill`:in `width` — lukema "seuraa" palkin kärkeä. */
 	.bar-row__rating {
 		position: absolute;
 		top: 50%;
 		transform: translateY(-50%);
 		margin-left: var(--space-2);
-		/* HUOM (29.9.2026): oli `var(--font-size-xs)`, jota EI ole olemassa tokens.css:ssä (skaala alkaa `sm`:stä) — sama bugi kuin `.chart-header__top`:issa, korjattu samalla. */
 		font-size: var(--font-size-sm);
 		font-weight: 700;
 		white-space: nowrap;
@@ -446,12 +711,6 @@
 		border-top: 1px solid var(--color-surface-border);
 	}
 
-	/*
-	 * Käyttäjän pyyntö 29.9.2026: "Toista"-teksti korvattu emojilla, nappi
-	 * paljon pienempi kuin ennen — ei enää iso tekstinappi, vain pyöreä
-	 * pieni play/pause-ikoni. `aria-label` pitää sen silti nimettynä
-	 * ruudunlukijoille vaikka näkyvä sisältö on pelkkä emoji.
-	 */
 	.play-btn {
 		flex-shrink: 0;
 		display: flex;
