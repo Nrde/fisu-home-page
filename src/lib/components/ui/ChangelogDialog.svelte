@@ -79,6 +79,16 @@
 		border-radius: var(--radius-lg);
 		background: var(--color-surface);
 		color: var(--color-text);
+		/*
+		 * BUGIKORJAUS (29.9.2026, käyttäjän raportoima kaksi pystyvierityspalkkia):
+		 * natiivi `<dialog>` saa selaimen OMASTA UA-tyylitiedostosta valmiiksi
+		 * `overflow: auto`in — kun sisältö ylitti `max-height`in, SEKÄ tämä
+		 * elementti ETTÄ `.changelog-dialog__list` (oma `overflow-y: auto`,
+		 * ks. alempana) vierittivät samaan aikaan. `overflow: hidden` tässä
+		 * poistaa ULOMMAN vierityksen — otsikko+sulje-nappi pysyvät aina
+		 * paikallaan, VAIN `.changelog-dialog__list` vierittää.
+		 */
+		overflow: hidden;
 	}
 
 	/* Natiivi `<dialog>`:n oma taustahimmennys — sama tummuusaste kaikkialla sivustolla käytetylle overlaylle. */
@@ -90,6 +100,11 @@
 		display: flex;
 		flex-direction: column;
 		max-height: inherit;
+		/* Ilman tätä flex-lapsen oletus min-height on "auto" (= sisällön oma
+		   korkeus), jolloin tämä laatikko kasvaisi sisältönsä mukana YLI
+		   `max-height inherit`:in sen sijaan että antaisi tilaa alla olevan
+		   `.changelog-dialog__list`:in OMALLE vieritykselle. */
+		min-height: 0;
 		padding: var(--space-6);
 	}
 
@@ -126,6 +141,13 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-6);
+		/* `flex: 1 1 auto` + `min-height: 0` antavat TÄMÄN elementin kutistua
+		   pienemmäksi kuin oma sisältönsä flex-kontainerin (`.changelog-dialog__
+		   content`) sisällä — ilman `min-height: 0`:aa flex-lapsen oletus on
+		   sisällön oma korkeus, jolloin `overflow-y: auto` ei koskaan pääsisi
+		   vaikuttamaan (tila loppuisi aina ensin YLEMMÄLTÄ elementiltä). */
+		flex: 1 1 auto;
+		min-height: 0;
 		overflow-y: auto;
 		/* `reset.css` nollaa vain marginaalin, ei `<ul>`:n oletuspaddingia/pisteitä — sama tunnettu korjaus kuin muuallakin sivustolla. */
 		list-style: none;
