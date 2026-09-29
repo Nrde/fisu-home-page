@@ -11,6 +11,18 @@
 	 * käyttäjä ei pyytänyt sitä, joten linkki jätetty lisäämättä ettei
 	 * navigaatio täyty ominaisuudesta jota ei vielä ole vahvistettu
 	 * valmiiksi.
+	 *
+	 * PÄIVITYS (29.9.2026, käyttäjän pyyntö): erillinen `<h1>Rating</h1>` +
+	 * johdantokappale POISTETTU tästä kokonaan — käyttäjän oma perustelu:
+	 * "tällä sivulla olisi tärkeää saada mahtumaan mahdollisimman monta
+	 * graafin riviä näytölle", eikä sivun oma otsikkorivi (sama whitespace-
+	 * käytäntö kuin muillakin sivuilla) ollut sen arvoinen pystytilan
+	 * kuluttaja tällä NIMENOMAISELLA sivulla. Sama "brändäys" ("Rating")
+	 * on nyt RaceChart.svelte:n OMA himmeä `.chart-watermark`-tausta-
+	 * teksti kaavion laatikon sisällä — vie NOLLA ylimääräistä pystytilaa,
+	 * koska se on asemoitu laatikon SISÄLLE, ei omaksi rivikseen sen
+	 * yläpuolelle. Sivun oikea `<title>`/kuvaus säilyvät silti
+	 * `<svelte:head>`:ssä hakukoneita/välilehteä varten.
 	 */
 	import RaceChart from '#lib/components/ui/RaceChart.svelte';
 	import RatingListRow from '#lib/components/ui/RatingListRow.svelte';
@@ -25,14 +37,11 @@
 </script>
 
 <svelte:head>
-	<title>Reittaus — FISU</title>
+	<title>Kuljettaja Rating — FISU</title>
 	<meta name="description" content="Kuljettajien rating kehitys kisa kisalta." />
 </svelte:head>
 
 <section class="page-grid section">
-	<h1 class="page-title">Rating</h1>
-	<p class="page-intro">Kuljettajien kehitys kisa kisalta.</p>
-
 	<RaceChart frames={data.raceChart.frames} totalDrivers={data.raceChart.totalDrivers} />
 
 	<h2 class="section-title">Nykyinen sijoitus</h2>
@@ -52,21 +61,9 @@
 </section>
 
 <style>
+	/* Käyttäjän pyyntö 29.9.2026: YLÄpadding pieneksi (ei enää sama kuin muilla sivuilla) — kaavio itse tarvitsee pystytilan, ks. script-lohkon PÄIVITYS-kommentti. */
 	.section {
-		padding-block: var(--space-12);
-	}
-
-	.page-title {
-		font-size: var(--font-size-2xl);
-		font-weight: 800;
-		letter-spacing: -0.01em;
-	}
-
-	.page-intro {
-		margin-top: var(--space-1);
-		margin-bottom: var(--space-8);
-		color: var(--color-text-muted);
-		font-weight: 600;
+		padding-block: var(--space-4) var(--space-12);
 	}
 
 	.section-title {
