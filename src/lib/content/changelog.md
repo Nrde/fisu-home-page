@@ -10,6 +10,15 @@
 	  - Yksi rivi per muutoskohta.
 -->
 
+## 30.9.2026 21:00
+
+- Uusi "Rating"-sivu: kuljettajien reittauksen kehitys kisa kisalta animoituna pylväskaaviona, plus tavallinen sijoituslista alla niille joita animaatiot eivät kiinnosta.
+- Kaaviota selataan nyt raahaamalla — kiinteät "1–15 / 16–30..." -välilehdet vaihtuivat yhteen jatkuvaan liukuikkunaan, joka näyttää myös vihreällä kuinka moni sijoitus on kussakin kisassa ylipäätään jo ratkaistu.
+- Tiettyä kuljettajaa voi hakea nimellä ja "seurata" — hänen palkkinsa korostuu ja liukuikkuna seuraa automaattisesti hänen sijoitustaan koko kauden ajan, sekä ylös että alas, ilman että sitä tarvitsee itse metsästää.
+- Korjattu bugi, jossa kisa jolta puuttui tallennettu aika-ajotulos (esim. Road Atlanta -osakilpailu) näytti KAIKKIEN kuljettajien menettäneen sijoja lähdöstä — syy oli JavaScriptin oma kepponen ("" muuttuu laskennassa nollaksi), ei kenenkään oikea ajosuoritus.
+- Otsikkopalkin logon ja "FISU."-tekstin pisteen väliin livahtanut ylimääräinen väli korjattu.
+- (Konepellin alla: pylväiden pituusanimaatio korjattu toimimaan luotettavasti kaikissa selaimissa, kaavion otsikon fonttikoot ja marginaalit siistitty, kaavio levenee lähemmäs sivun muuta sisältöä.)
+
 ## 27.9.2026 16:00
 
 - Otsikkopalkkiin ilmestyi FISU-logo "FISU."-tekstin viereen — sivusto näyttää nyt vihdoin siltä että joku oikeasti suunnitteli sen, eikä vain kirjoittanut sitä Internet Assistant for Microsoft Wordillä. Lisäksi Silverspeed on tyytyväinen.
