@@ -519,8 +519,27 @@ function normalizeDriverRow(
  * joka on yksiselitteinen: pienempi loppusijoitus kuin lähtöruutu ->
  * positiivinen (nousi), suurempi -> negatiivinen (laski). `undefined` jos
  * `startingPosition` puuttuu (esim. aika-ajo ajamatta) — ei arvata.
+ *
+ * BUGIKORJAUS (30.9.2026, käyttäjän raportoima: "/kaudet/125/kilpailut/603
+ * shows all drivers having lost places"): syy oli `Number("")` ja
+ * `Number(null)` — molemmat ovat JavaScriptissä `0`, EIVÄT `NaN`, joten
+ * `Number.isFinite(...)`-tarkistus PÄÄSTI läpi kun `startingPosition`
+ * puuttui. Tämän kisan aika-ajoa ei ollut tallennettu simracing.fi:hin
+ * lainkaan (käyttäjän oma diagnoosi, vahvistettu suoraan API:sta:
+ * `startingPosition: ""` JOKAISELLA kuljettajalla) — `Number("")` -> `0`,
+ * jolloin JOKAISEN kuljettajan "muutos" laskettiin `0 - position`:na eli
+ * AINA negatiivisena riippumatta todellisesta tuloksesta. Tarkistetaan nyt
+ * EKSPLISIITTISESTI `""`/`null`/`undefined` ENNEN `Number(...)`-muunnosta
+ * sen sijaan että luotettaisiin `Number.isFinite`:n riittävän — sama
+ * kahden nollaa-tuottavan arvon (tyhjä merkkijono, `null`) kompastuskivi
+ * voisi toistua muuallakin tässä tiedostossa, jos joskus lisätään uusia
+ * `Number(raw.jokinKenttä)`-muunnoksia kenttiin jotka voivat olla tyhjiä.
  */
 function normalizePositionChange(raw: RawRaceResultDriver): number | undefined {
+	if (raw.startingPosition === '' || raw.startingPosition === null || raw.startingPosition === undefined) {
+		return undefined;
+	}
+
 	const startingPosition = Number(raw.startingPosition);
 	const position = Number(raw.position);
 	if (Number.isFinite(startingPosition) && Number.isFinite(position)) {
