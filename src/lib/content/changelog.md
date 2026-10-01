@@ -10,6 +10,14 @@
 	  - Yksi rivi per muutoskohta.
 -->
 
+## 1.10.2026 21:03
+
+- Selaimen välilehdessä ja kirjanmerkeissä näkyvä kuvake ("favicon") on nyt vihdoin FISU:n oma logo — ei enää SvelteKitin oletusasennuksen Svelte-logo, jonka kukaan ei koskaan muistanut vaihtaa.
+- Sivu latautuu nyt nopeammin: logo pieneni 146 kilotavusta muutamaan kilotavuun, ja sivun CSS/JS-tiedostot niputettiin yhdeksi isommaksi sen sijaan että selain joutui lataamaan kymmeniä pieniä tiedostoja peräkkäin ennen kuin mitään näkyi ruudulla.
+- Himmeä teksti (esim. pisteet/kisa-lukema) ja korttien reunaviivat säädettiin selvemmin erottuviksi taustasta — osa oli hieman TOO himmeää näkörajoitteisille.
+- Discord-nappi otsikkopalkissa ei enää "hyppää" ylöspäin kun sitä hiirellä osoittaa — pelkkä reunan värinvaihto, ja nappi itse hieman pienempi.
+- (Konepellin alla: Lighthouse-raportin pohjalta tehty siivous — kuvan pakkaus, tiedostojen niputus, väri- ja kontrastisäädöt. Selaimen takaisin/eteenpäin-välimuisti (bfcache) jäi vielä tutkittavaksi, ei korjattavaksi tällä kertaa.)
+
 ## 30.9.2026 21:00
 
 - Uusi "Rating"-sivu: kuljettajien reittauksen kehitys kisa kisalta animoituna pylväskaaviona, plus tavallinen sijoituslista alla niille joita animaatiot eivät kiinnosta.
