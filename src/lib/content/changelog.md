@@ -12,10 +12,10 @@
 
 ## 1.10.2026 21:03
 
-- Selaimen välilehdessä ja kirjanmerkeissä näkyvä kuvake ("favicon") on nyt vihdoin FISU:n oma logo — ei enää SvelteKitin oletusasennuksen Svelte-logo, jonka kukaan ei koskaan muistanut vaihtaa.
+- Selaimen välilehdessä ja kirjanmerkeissä näkyvä kuvake ("favicon") on nyt vihdoin FISU:n oma logo — Vihdoin myös lukutaidottomat osaavat valita sivun bookmarkeista.
 - Sivu latautuu nyt nopeammin: logo pieneni 146 kilotavusta muutamaan kilotavuun, ja sivun CSS/JS-tiedostot niputettiin yhdeksi isommaksi sen sijaan että selain joutui lataamaan kymmeniä pieniä tiedostoja peräkkäin ennen kuin mitään näkyi ruudulla.
-- Himmeä teksti (esim. pisteet/kisa-lukema) ja korttien reunaviivat säädettiin selvemmin erottuviksi taustasta — osa oli hieman TOO himmeää näkörajoitteisille.
-- Discord-nappi otsikkopalkissa ei enää "hyppää" ylöspäin kun sitä hiirellä osoittaa — pelkkä reunan värinvaihto, ja nappi itse hieman pienempi.
+- Himmeä teksti (esim. pisteet/kisa-lukema) ja korttien reunaviivat säädettiin selvemmin erottuviksi taustasta — osa oli hieman liian himmeää näkörajoitteisille.
+- Discord-nappi otsikkopalkissa ei enää "hyppää" ylöspäin kun sitä hiirellä osoittaa — pelkkä reunan värinvaihto. Ja "olen sivun tärkein nappi" koko muutettiin "olen yksi nappi muiden joukossa" kokoiseksi.
 - (Konepellin alla: Lighthouse-raportin pohjalta tehty siivous — kuvan pakkaus, tiedostojen niputus, väri- ja kontrastisäädöt. Selaimen takaisin/eteenpäin-välimuisti (bfcache) jäi vielä tutkittavaksi, ei korjattavaksi tällä kertaa.)
 
 ## 30.9.2026 21:00
