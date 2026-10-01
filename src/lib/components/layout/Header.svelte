@@ -20,7 +20,10 @@
 <header class="site-header page-grid bleed">
 	<div class="site-header__inner">
 		<a href="/" class="site-header__logo">
-			<img src="/fisu-logo.png" alt="" width="525" height="432" class="site-header__logo-mark" />
+			<picture>
+				<source srcset="/fisu-logo.webp" type="image/webp" />
+				<img src="/fisu-logo.png" alt="" width="90" height="74" class="site-header__logo-mark" />
+			</picture>
 			<span class="site-header__logo-text">FISU<span class="site-header__logo-accent">.</span></span>
 		</a>
 
@@ -33,7 +36,7 @@
 		</nav>
 
 		<div class="site-header__cta site-header__cta--desktop">
-			<Button variant="ghost" href={DISCORD_INVITE_URL}>Discord</Button>
+			<Button variant="ghost" size="sm" href={DISCORD_INVITE_URL}>Discord</Button>
 		</div>
 
 		<button
@@ -111,19 +114,23 @@
 	/*
 	 * Logo-merkki "FISU."-tekstin vasemmalla puolella — käyttäjän pyyntö
 	 * 27.9.2026 (`static/fisu-logo.png`, tarjoillaan SvelteKitin staattisena
-	 * tiedostona sellaisenaan URL-juuresta). PNG EIKÄ SVG: ensimmäinen
-	 * annettu SVG oli 453 kt (auto-jäljitetty pikselipolku, ei siisti
-	 * vektori) — käyttäjä vaihtoi sen tähän 146 kt PNG:hen samana päivänä
-	 * liian suureksi todetun SVG:n tilalle. `width`/`height`-attribuutit
-	 * (525x432, kuvan oma resoluutio) EIVÄT ole näyttökoko — ne varaavat
-	 * oikean kuvasuhteen ETUKÄTEEN ennen kuvan latautumista (estää layout-
-	 * hyppäyksen), itse NÄYTTÖKOKO tulee alla olevasta CSS:stä. `height` on `em`-yksikkö
-	 * SUHTEESSA `.site-header__logo`:n omaan fonttikokoon, ei kiinteä px-
-	 * arvo — merkki skaalautuu automaattisesti jos otsikkotekstin koko
-	 * joskus muuttuu. `1.4em` on hieman KORKEAMPI kuin viereinen teksti
-	 * (käyttäjän pyyntö "slightly taller than the text"), `align-items:
-	 * center` yllä `.site-header__logo`:lla keskittää sen pystysuunnassa
-	 * tekstiin nähden sen sijaan että se noudattaisi tekstin perusviivaa.
+	 * tiedostona sellaisenaan URL-juuresta). Historia: ensimmäinen annettu
+	 * SVG oli 453 kt (auto-jäljitetty pikselipolku) -> vaihdettiin 146 kt
+	 * PNG:hen (525x432) -> Lighthouse-raportin perusteella (1.10.2026)
+	 * PNG pienennetty TODELLISEEN näyttökokoon (90x74, 2x retina-tarkkuus
+	 * 45x37-näyttökoolle) ImageMagickilla 10,5 kt:ksi, JA rinnalle lisätty
+	 * `fisu-logo.webp` (3,4 kt) — `<picture>` tarjoaa WebP:n ensisijaisena
+	 * (`<source>`) ja PNG:n varalla selaimille jotka eivät tue WebP:tä.
+	 * `width`/`height`-attribuutit (90x74, kuvan OMA resoluutio nyt, ei
+	 * enää alkuperäinen 525x432) varaavat oikean kuvasuhteen ETUKÄTEEN
+	 * ennen kuvan latautumista (estää layout-hyppäyksen) — itse NÄYTTÖKOKO
+	 * tulee silti alla olevasta CSS:stä. `height` on `em`-yksikkö SUHTEESSA
+	 * `.site-header__logo`:n omaan fonttikokoon, ei kiinteä px-arvo —
+	 * merkki skaalautuu automaattisesti jos otsikkotekstin koko joskus
+	 * muuttuu. `1.4em` on hieman KORKEAMPI kuin viereinen teksti (käyttäjän
+	 * pyyntö "slightly taller than the text"), `align-items: center` yllä
+	 * `.site-header__logo`:lla keskittää sen pystysuunnassa tekstiin
+	 * nähden sen sijaan että se noudattaisi tekstin perusviivaa.
 	 */
 	.site-header__logo-mark {
 		display: block;

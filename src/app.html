@@ -4,6 +4,16 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="text-scale" content="scale" />
+		<!--
+			Lighthouse-raportti (1.10.2026, "Preconnect candidates"): rataprofiilien
+			SVG-kuvat (ks. env.ts:n TRACK_IMAGE_BASE_URL) latautuvat SUORAAN
+			selaimesta tästä isännästä (eri isäntä kuin FISU-API, ks. sen oma
+			kommentti) — ainoa SELAIMEN itse tekemä ulkoinen kuvahaku tällä
+			sivustolla (API-kutsut tapahtuvat palvelimella, ei selaimessa,
+			joten niiden isäntää ei kannata preconnectata täältä). Kovakoodattu
+			koska se on build-aikainen oletusosoite, ei salaisuus.
+		-->
+		<link rel="preconnect" href="https://fisu.simracing.fi" />
 		%sveltekit.head%
 	</head>
 	<!--

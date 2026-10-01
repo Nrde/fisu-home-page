@@ -9,14 +9,25 @@
 	import type { Snippet } from 'svelte';
 
 	type Variant = 'primary' | 'ghost';
+	type Size = 'base' | 'sm';
 
 	let {
 		variant = 'primary',
+		size = 'base',
 		href,
 		onclick,
 		children
 	}: {
 		variant?: Variant;
+		/**
+		 * UUSI 1.10.2026, käyttäjän pyyntö ("the [discord] button could be
+		 * slightly smaller"): `'sm'` pienentää paddingia/fonttia. Oma propsi
+		 * `variant`:in RINNALLA (ei `'ghost-sm'`-variantti) koska koko ja
+		 * tyyli (väri/reuna) ovat eri ulottuvuuksia — näin esim. Hero.svelte:n
+		 * `ghost`-CTA pysyy ENNALLAAN isompana, vain Header.svelte:n Discord-
+		 * nappi pienenee.
+		 */
+		size?: Size;
 		/** Jos annettu, renderöityy <a>-elementtinä napin sijaan. */
 		href?: string;
 		onclick?: () => void;
@@ -25,11 +36,11 @@
 </script>
 
 {#if href}
-	<a class="button button--{variant}" {href}>
+	<a class="button button--{variant} button--{size}" {href}>
 		{@render children()}
 	</a>
 {:else}
-	<button class="button button--{variant}" {onclick}>
+	<button class="button button--{variant} button--{size}" {onclick}>
 		{@render children()}
 	</button>
 {/if}
@@ -47,12 +58,10 @@
 		text-transform: uppercase;
 		transition:
 			transform var(--duration-fast) var(--ease-out-quart),
+			border-color var(--duration-fast) var(--ease-out-quart),
 			box-shadow var(--duration-fast) var(--ease-out-quart),
-			background var(--duration-fast) var(--ease-out-quart);
-	}
-
-	.button:hover {
-		transform: translateY(-2px);
+			background var(--duration-fast) var(--ease-out-quart),
+			color var(--duration-fast) var(--ease-out-quart);
 	}
 
 	.button--primary {
@@ -61,10 +70,18 @@
 		box-shadow: var(--glow-info);
 	}
 
+	/* `transform`-nosto rajattu TÄHÄN (ei enää jaettuun `.button:hover`:iin) — käyttäjän pyyntö 1.10.2026 ("discord button... could be without shifting effect"), sama periaate kuin projektin aiempi kortit-eivät-nouse-hoverissa-päätös. */
 	.button--primary:hover {
+		transform: translateY(-2px);
 		background: var(--color-primary-hover);
 	}
 
+	/*
+	 * PÄIVITETTY (1.10.2026, käyttäjän pyyntö): Discord-nappi käyttää tätä
+	 * varianttia — EI enää hover-nostoa ("plain border color change would
+	 * be good"), VAIN reunan/tekstin värinvaihto, sama periaate kuin
+	 * `.button--primary`:lla PÄÄTETTIIN pitää vain sillä, ei tällä.
+	 */
 	.button--ghost {
 		background: transparent;
 		border: 1px solid var(--color-surface-border);
@@ -74,5 +91,17 @@
 	.button--ghost:hover {
 		border-color: var(--color-info);
 		color: var(--color-info);
+	}
+
+	/*
+	 * `size="sm"` — UUSI 1.10.2026, ks. script-lohkon `Size`-kommentti.
+	 * HUOM: `0.75rem` on KIRJAIMELLINEN arvo, ei token-viittaus — tokens.css:n
+	 * fonttikokoskaala alkaa `--font-size-sm`:stä (ei ole erillistä "xs"-
+	 * tasoa), eikä tätä yhtä nappia varten ollut syytä lisätä uutta
+	 * globaalia tokenia.
+	 */
+	.button--sm {
+		padding: var(--space-2) var(--space-4);
+		font-size: 0.75rem;
 	}
 </style>
