@@ -643,3 +643,138 @@ export interface RawRaceChartResponse {
 	totalFrames: number;
 	frames: RawRaceChartFrame[];
 }
+
+/**
+ * Arvostelut (reviews) — UUSI 2.10.2026, API-tiimin dokumentoima
+ * ominaisuus (ks. API-REFERENCE.md:n luku 11 / API-FIELD-MAP.md). Kuljettajat
+ * arvostelevat autoja, ratoja ja auto+rata-yhdistelmiä asteikolla 1-5 +
+ * vapaaehtoinen lyhyt kommentti. HUOM (TÄRKEÄ POIKKEUS client.ts:n
+ * konventiosta): nämä endpointit EIVÄT ole yhtenäisesti `{success, data}`
+ * -kääreessä — osa (`/reviews/me`, `/reviews`) palauttaa kentät TASAISENA
+ * JUURITASOLLA (`token`, `cars`, ... suoraan, ei `data`:n sisällä), ja
+ * `POST`-endpointit palauttavat VIRHETILANTEESSA (401/422) JSON-rungon
+ * JOKA PITÄÄ LUKEA vaikka HTTP-status ei ole 2xx (validointivirheiden
+ * kenttäkohtaiset syyt, `errors`-olio) — `apiFetch`/`apiFetchEnvelope`
+ * (jotka heittävät heti `!response.ok`:lla) EIVÄT siis kelpaa näille
+ * kahdelle, ks. client.ts:n `postReviewLogin`/`postReview`-kommentit.
+ */
+
+/** `POST /reviews/me` -vastauksen `cars`-taulukon rivi. */
+export interface RawReviewLoginCar {
+	carId: number;
+	name: string;
+	races: number;
+}
+
+export interface RawReviewLoginTrack {
+	trackId: string;
+	trackName: string;
+	races: number;
+}
+
+export interface RawReviewLoginCombo {
+	carId: number;
+	trackId: string;
+	races: number;
+}
+
+export interface RawMyReview {
+	carId: number | null;
+	trackId: string | null;
+	score: number;
+	note: string | null;
+	updatedAt: string;
+}
+
+/**
+ * `POST /reviews/me` — kirjautuminen SteamID64:llä + jaetulla salasanalla.
+ * Onnistuessaan (200): `token`/`name`/`cars`/`tracks`/`combos`/`myReviews`
+ * kaikki läsnä. Epäonnistuessaan (401, väärä tunnus TAI salasana —
+ * TARKOITUKSELLA sama virhe kummassakin): vain `success: false` +
+ * `message`. Kaikki onnistumiskentät siis VALINNAISIA tässä tyypissä.
+ */
+export interface RawReviewLoginResponse {
+	success: boolean;
+	token?: string;
+	name?: string;
+	cars?: RawReviewLoginCar[];
+	tracks?: RawReviewLoginTrack[];
+	combos?: RawReviewLoginCombo[];
+	myReviews?: RawMyReview[];
+	/** VAIN virhetilanteessa (401). */
+	message?: string;
+}
+
+/**
+ * `POST /reviews` — yksittäisen arvostelun tallennus (vaatii `Authorization:
+ * Bearer <token>`). Onnistuessaan (200) kaiku takaisin tallennetusta
+ * arvostelusta. `422`-validointivirheessä `error`+`errors`-olio
+ * (kenttäkohtaiset syyt: `target`/`score`/`note`). `401`:ssä pelkkä
+ * `message` (token puuttuu/vanhentunut, token kestää 6h).
+ */
+export interface RawSubmitReviewResponse {
+	success: boolean;
+	carId?: number | null;
+	trackId?: string | null;
+	score?: number;
+	note?: string | null;
+	/** VAIN 422-validointivirheessä. */
+	error?: string;
+	errors?: {
+		target?: string;
+		score?: string;
+		note?: string;
+	};
+	/** VAIN 401:ssä. */
+	message?: string;
+}
+
+/** Avaimet ovat KIRJAIMELLISESTI merkkijonot "1".."5" JSON:ssa (objektiavaimet ovat aina merkkijonoja). */
+export type RawReviewDistribution = Record<'1' | '2' | '3' | '4' | '5', number>;
+
+export interface RawReviewNote {
+	score: number;
+	note: string;
+	updatedAt: string;
+}
+
+export interface RawReviewSummary {
+	count: number;
+	/** `null` kun EI VIELÄ YHTÄÄN arvostelua — ei virhetila, ks. API-REFERENCE.md:n oma huomautus. */
+	average: number | null;
+	distribution: RawReviewDistribution;
+}
+
+/**
+ * `GET /reviews/car/{carId}` / `/reviews/track/{trackId}` /
+ * `/reviews/combo/{carId}/{trackId}` — yhden kohteen koko arvostelutieto,
+ * julkinen, ei kirjautumista. `notes` sisältää VAIN kommentilliset
+ * arvostelut (pisteen voi antaa ilman kommenttia), uusin ensin.
+ */
+export interface RawReviewTargetResponse {
+	carId: number | null;
+	trackId: string | null;
+	summary: RawReviewSummary;
+	notes: RawReviewNote[];
+}
+
+/** `GET /reviews/cars` / `/reviews/tracks` -listarivi — `carId` TAI `trackId` läsnä riippuen listasta, ei koskaan molemmat. */
+export interface RawReviewListEntry {
+	carId?: number;
+	trackId?: string;
+	count: number;
+	average: number | null;
+	distribution: RawReviewDistribution;
+}
+
+/** `GET /reviews/cars` / `/reviews/tracks` — VAIN arvostellut kohteet listataan (ks. API-REFERENCE.md). */
+export interface RawReviewListResponse {
+	data: RawReviewListEntry[];
+}
+
+/** `GET /reviews/track/{trackId}/cars` — radalla arvosteltujen autojen YHDISTELMÄpisteet (eri pooli kuin auton oma yleispistemäärä). */
+export interface RawTrackCarReviewsResponse {
+	trackId: string;
+	data: RawReviewListEntry[];
+}
+

@@ -64,6 +64,7 @@
 		-->
 		<div class="fluid-grid track-grid" data-gap="4">
 			{#each filteredTracks as track (track.id)}
+				{@const review = data.reviewsByTrackId[track.id]}
 				<TrackCard
 					id={track.id}
 					name={track.name}
@@ -72,6 +73,8 @@
 					turns={track.turns}
 					built={track.built}
 					imageUrl={track.imageUrl}
+					reviewAverage={review?.average}
+					reviewCount={review?.count}
 				/>
 			{/each}
 		</div>

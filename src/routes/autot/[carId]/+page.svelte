@@ -1,5 +1,6 @@
 <script lang="ts">
 	/** Auton tarkennussivu. */
+	import ReviewSummarySection from '#lib/components/ui/ReviewSummarySection.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -75,14 +76,22 @@
 	{/if}
 
 	<!--
-		Tulossa-huomautus: käyttäjän mainitsema tuleva ominaisuus (25.9.2026)
-		— auton ja radan yhdistelmän arviointi kuljettajapalautteen
-		perusteella. Ei toiminnallisuutta vielä, pelkkä maininta ettei tämä
-		ole unohdettu.
+		PÄIVITYS (2.10.2026): käyttäjän 25.9.2026 mainitsema "tulossa"-ominaisuus
+		(kuljettajapalautteeseen perustuva arviointi) ON NYT TOTEUTETTU — aiempi
+		pelkkä maininta-kappale korvattu oikealla arvostelulohkolla alla. Itse
+		arvostelun ANTAMINEN tapahtuu erillisellä /arvostelut-sivulla (vaatii
+		kevyen SteamID+salasana-"kirjautumisen", ks. sen oma kommentti) — tämä
+		sivu näyttää vain JULKISEN, jo kerätyn yhteenvedon.
 	-->
-	<p class="car-upcoming">
-		Tulossa: auton ja radan yhdistelmän arviointi kuljettajapalautteen perusteella.
-	</p>
+	{#if data.reviews}
+		<ReviewSummarySection
+			title="Arvostelut"
+			count={data.reviews.summary.count}
+			average={data.reviews.summary.average}
+			distribution={data.reviews.summary.distribution}
+			notes={data.reviews.notes}
+		/>
+	{/if}
 
 	<div class="season-history">
 		<h2 class="season-history__title">Kaudet ja kilpailut</h2>
@@ -259,13 +268,6 @@
 		font-weight: 400;
 		color: var(--color-text-muted);
 		line-height: 1.5;
-	}
-
-	.car-upcoming {
-		margin-top: var(--space-4);
-		color: var(--color-text-faint);
-		font-size: var(--font-size-sm);
-		font-style: italic;
 	}
 
 	.season-history {
