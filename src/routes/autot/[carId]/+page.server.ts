@@ -18,12 +18,21 @@ import { error } from '@sveltejs/kit';
 import {
 	ApiError,
 	fetchCarDictionary,
+	fetchCarReviews,
 	fetchFinishedRaceIds,
 	fetchOrganiserSummary,
 	fetchSeasonCarPool,
 	fetchSeasonRaces
 } from '#lib/server/api/client.ts';
-import { mapCars, mapSeasonRaceList, matchCarSeasons, type CarSeasonMatch, type SeasonRaceListEntry } from '#lib/server/api/mappers.ts';
+import {
+	mapCars,
+	mapReviewTarget,
+	mapSeasonRaceList,
+	matchCarSeasons,
+	type CarSeasonMatch,
+	type ReviewTarget,
+	type SeasonRaceListEntry
+} from '#lib/server/api/mappers.ts';
 import type { PageServerLoad } from './$types';
 
 const ORGANISER = 'fisu';
@@ -76,7 +85,17 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 			);
 		}
 
-		return { car, seasonHistory };
+		// Arvostelut ovat "parasta yritystä" -lisätieto (UUSI 2.10.2026,
+		// käyttäjän pyyntö) — epäonnistuminen ei saa kaataa koko sivua,
+		// samalla periaatteella kuin kausi-/kisahistoria yllä.
+		let reviews: ReviewTarget | undefined;
+		try {
+			reviews = mapReviewTarget(await fetchCarReviews(fetch, carId));
+		} catch (reviewError) {
+			console.warn(`[autot/[carId]/+page.server.ts] Arvostelujen haku epäonnistui, näytetään silti auton tiedot.`, reviewError);
+		}
+
+		return { car, seasonHistory, reviews };
 	} catch (err) {
 		// HUOM: sama 404-läpipäästö kuin `/radat/[trackid]`:ssa — `ApiError`
 		// kantaa myös julkista `status`-kenttää, joten se pitää sulkea pois

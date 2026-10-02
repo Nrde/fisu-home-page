@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ReviewSummarySection from '#lib/components/ui/ReviewSummarySection.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -287,6 +288,38 @@
 
 	{#if track.info}
 		<p class="track-info">{track.info}</p>
+	{/if}
+
+	<!--
+		Arvostelut — UUSI 2.10.2026, käyttäjän pyyntö. Itse arvostelun
+		ANTAMINEN tapahtuu erillisellä /arvostelut-sivulla (kevyt SteamID+
+		salasana-kirjautuminen), tämä on vain julkinen yhteenveto.
+	-->
+	{#if data.reviews}
+		<ReviewSummarySection
+			title="Radan arvostelut"
+			count={data.reviews.summary.count}
+			average={data.reviews.summary.average}
+			distribution={data.reviews.summary.distribution}
+			notes={data.reviews.notes}
+		/>
+	{/if}
+
+	{#if data.comboReviews.length > 0}
+		<div class="combo-reviews">
+			<h2 class="combo-reviews__title">Parhaat autot tällä radalla</h2>
+			<ul class="combo-reviews__list">
+				{#each data.comboReviews as combo (combo.carId)}
+					<li class="combo-reviews__item">
+						<a href="/autot/{combo.carId}" class="link">{combo.carName}</a>
+						<span class="combo-reviews__score">
+							★ {combo.average?.toLocaleString('fi-FI', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+							<span class="combo-reviews__count">({combo.count})</span>
+						</span>
+					</li>
+				{/each}
+			</ul>
+		</div>
 	{/if}
 
 	<div class="race-history">
@@ -782,6 +815,48 @@
 		.track-facts__record-driver {
 			display: none;
 		}
+	}
+
+	.combo-reviews {
+		margin-top: var(--space-10);
+	}
+
+	.combo-reviews__title {
+		margin-bottom: var(--space-4);
+		font-size: var(--font-size-lg);
+		font-weight: 800;
+	}
+
+	/* `reset.css` nollaa vain marginaalin, ei `<ul>`:n oletuspaddingia/pisteitä — sama tunnettu korjaus kuin muuallakin sivustolla. */
+	.combo-reviews__list {
+		list-style: none;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+
+	.combo-reviews__item {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: var(--space-2) var(--space-4);
+		padding: var(--space-3) var(--space-4);
+		border-radius: var(--radius-md);
+		background: var(--color-surface);
+		border: 1px solid var(--color-surface-border);
+	}
+
+	.combo-reviews__score {
+		color: var(--color-warning);
+		font-weight: 700;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.combo-reviews__count {
+		color: var(--color-text-faint);
+		font-weight: 600;
 	}
 
 	.race-history {

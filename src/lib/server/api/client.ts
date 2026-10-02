@@ -35,9 +35,14 @@ import type {
 	RawRaceChartResponse,
 	RawRaceListResponse,
 	RawRaceResultResponse,
+	RawReviewLoginResponse,
+	RawReviewTargetResponse,
+	RawReviewListResponse,
 	RawSeasonRacesResponse,
 	RawStatsCompleteResponse,
 	RawStatsResponse,
+	RawSubmitReviewResponse,
+	RawTrackCarReviewsResponse,
 	RawTrackListResponse
 } from './types.ts';
 
@@ -317,4 +322,98 @@ export async function fetchRaceCars(fetchFn: typeof fetch, seasonId: number, rac
  */
 export function fetchRaceChartData(fetchFn: typeof fetch) {
 	return apiFetch<RawRaceChartResponse>(fetchFn, `/cache/race_chart_data.json`);
+}
+
+/**
+ * Lukee JSON-rungon RIIPPUMATTA HTTP-statuksesta — UUSI 2.10.2026,
+ * arvostelu-endpointeja varten. `apiFetch` EI kelpaa `POST /reviews/me`:lle
+ * eikä `POST /reviews`:lle, koska niiden VIRHEVASTAUKSET (401 väärä
+ * tunnus/salasana, 422 validointivirhe kenttäkohtaisine syineen) OVAT
+ * itsessään se tieto jonka UI:n pitää näyttää käyttäjälle (esim. "pisteen
+ * on oltava 1-5") — `apiFetch` heittäisi nämä pois geneerisenä `ApiError`:na
+ * ennen kuin runkoa ehditään lukea. Tämä funktio EI siis erota onnistumista
+ * virheestä — kutsuja (mappers.ts:n `mapReviewLogin`/`mapSubmitReview`)
+ * tekee sen itse vastauksen OMAN `success`-kentän perusteella.
+ */
+async function postJsonAllowingErrorBody<T>(
+	fetchFn: typeof fetch,
+	path: string,
+	body: unknown,
+	headers: Record<string, string> = {}
+): Promise<T> {
+	const url = `${API_BASE_URL}${path}`;
+
+	if (dev) {
+		console.log(`[api] POST ${url}`);
+	}
+
+	const response = await fetchFn(url, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json', ...headers },
+		body: JSON.stringify(body)
+	});
+
+	const json = (await response.json()) as T;
+
+	if (dev) {
+		console.log(`[api] ${url} → HTTP ${response.status}, vastaus:`, JSON.stringify(json).slice(0, 500));
+	}
+
+	return json;
+}
+
+/**
+ * Kirjautuminen SteamID64:llä + jaetulla salasanalla — UUSI 2.10.2026, ks.
+ * types.ts:n `RawReviewLoginResponse`-kommentti. Palauttaa KOKO vastauksen
+ * onnistuneena TAI epäonnistuneena (`success: false` + `message`) —
+ * `mappers.ts`:n `mapReviewLogin` ratkaisee kumpi.
+ */
+export function postReviewLogin(fetchFn: typeof fetch, steamId: string, pw: string) {
+	return postJsonAllowingErrorBody<RawReviewLoginResponse>(fetchFn, '/reviews/me', { steamId, pw });
+}
+
+/**
+ * Yksittäisen arvostelun tallennus — UUSI 2.10.2026. `token` on
+ * `postReviewLogin`:n palauttama, VOIMASSA 6 TUNTIA (ks. API-REFERENCE.md).
+ * `carId`/`trackId`: molemmat = yhdistelmäarvostelu, vain toinen = auto-
+ * tai rata-arvostelu (vähintään toinen pakollinen, API validoi).
+ */
+export function postReview(
+	fetchFn: typeof fetch,
+	token: string,
+	body: { carId?: number; trackId?: string; score: number; note?: string }
+) {
+	return postJsonAllowingErrorBody<RawSubmitReviewResponse>(fetchFn, '/reviews', body, {
+		Authorization: `Bearer ${token}`
+	});
+}
+
+/** `GET /reviews/car/{carId}` — julkinen, ei kirjautumista. */
+export function fetchCarReviews(fetchFn: typeof fetch, carId: number) {
+	return apiFetch<RawReviewTargetResponse>(fetchFn, `/reviews/car/${carId}`);
+}
+
+/** `GET /reviews/track/{trackId}` — julkinen, ei kirjautumista. */
+export function fetchTrackReviews(fetchFn: typeof fetch, trackId: string) {
+	return apiFetch<RawReviewTargetResponse>(fetchFn, `/reviews/track/${trackId}`);
+}
+
+/** `GET /reviews/combo/{carId}/{trackId}` — julkinen, ei kirjautumista. */
+export function fetchComboReviews(fetchFn: typeof fetch, carId: number, trackId: string) {
+	return apiFetch<RawReviewTargetResponse>(fetchFn, `/reviews/combo/${carId}/${trackId}`);
+}
+
+/** `GET /reviews/cars` — listasivun arvostelut kerralla, VAIN arvostellut autot (ks. types.ts). */
+export function fetchCarReviewList(fetchFn: typeof fetch) {
+	return apiFetch<RawReviewListResponse>(fetchFn, `/reviews/cars`);
+}
+
+/** `GET /reviews/tracks` — listasivun arvostelut kerralla, VAIN arvostellut radat (ks. types.ts). */
+export function fetchTrackReviewList(fetchFn: typeof fetch) {
+	return apiFetch<RawReviewListResponse>(fetchFn, `/reviews/tracks`);
+}
+
+/** `GET /reviews/track/{trackId}/cars` — radalla arvosteltujen autojen yhdistelmäpisteet. */
+export function fetchTrackCarReviews(fetchFn: typeof fetch, trackId: string) {
+	return apiFetch<RawTrackCarReviewsResponse>(fetchFn, `/reviews/track/${trackId}/cars`);
 }

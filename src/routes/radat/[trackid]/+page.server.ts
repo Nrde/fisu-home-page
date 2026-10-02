@@ -19,9 +19,33 @@
  *    hyväksyttävä yhdelle tarkennussivulle.
  */
 import { error } from '@sveltejs/kit';
-import { ApiError, fetchOrganiserSummary, fetchSeasonRaces, fetchTracks } from '#lib/server/api/client.ts';
-import { mapTracks, matchTrackRaceHistory, type TrackRaceHistoryEntry } from '#lib/server/api/mappers.ts';
+import {
+	ApiError,
+	fetchCarDictionary,
+	fetchOrganiserSummary,
+	fetchSeasonRaces,
+	fetchTrackCarReviews,
+	fetchTrackReviews,
+	fetchTracks
+} from '#lib/server/api/client.ts';
+import {
+	mapCars,
+	mapReviewTarget,
+	mapTrackCarReviews,
+	mapTracks,
+	matchTrackRaceHistory,
+	type ReviewTarget,
+	type TrackRaceHistoryEntry
+} from '#lib/server/api/mappers.ts';
 import type { PageServerLoad } from './$types';
+
+/** Yhdistelmäarvostelu + auton nimi "parhaat autot tällä radalla" -listaa varten (ks. +page.svelte). */
+export interface TrackComboReview {
+	carId: number;
+	carName: string;
+	count: number;
+	average?: number;
+}
 
 // TODO (sama huomio kuin +page.server.ts:ssä): organisaation tunnus on
 // kovakoodattu koska sivusto näyttää vain FISUn dataa.
@@ -56,7 +80,35 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 			);
 		}
 
-		return { track, raceHistory };
+		// Arvostelut (oma + yhdistelmät tällä radalla) ovat "parasta yritystä"
+		// -lisätietoa (UUSI 2.10.2026, käyttäjän pyyntö) — epäonnistuminen
+		// ei kaada sivua, sama periaate kuin kisahistorian haussa yllä.
+		let reviews: ReviewTarget | undefined;
+		let comboReviews: TrackComboReview[] = [];
+		try {
+			const [rawReviews, rawCarReviews, rawCarDictionary] = await Promise.all([
+				fetchTrackReviews(fetch, track.id),
+				fetchTrackCarReviews(fetch, track.id),
+				fetchCarDictionary(fetch)
+			]);
+			reviews = mapReviewTarget(rawReviews);
+			const carNamesById = new Map(mapCars(rawCarDictionary).map((car) => [car.id, car.name]));
+			comboReviews = mapTrackCarReviews(rawCarReviews)
+				.map((entry) => ({
+					carId: entry.carId,
+					carName: carNamesById.get(entry.carId) ?? `Auto ${entry.carId}`,
+					count: entry.summary.count,
+					average: entry.summary.average
+				}))
+				// Parhaat autot ylimpänä — "ei vielä keskiarvoa" (average undefined,
+				// käytännössä ei pitäisi esiintyä koska lista sisältää VAIN
+				// arvostellut yhdistelmät) hännille jos joskus silti esiintyisi.
+				.sort((a, b) => (b.average ?? -1) - (a.average ?? -1));
+		} catch (reviewError) {
+			console.warn(`[radat/[trackid]/+page.server.ts] Arvostelujen haku epäonnistui, näytetään silti ratatiedot.`, reviewError);
+		}
+
+		return { track, raceHistory, reviews, comboReviews };
 	} catch (err) {
 		// HUOM: 404 (yllä heitetty `error(404, ...)`) pitää päästää LÄPI
 		// sellaisenaan — se EI ole API-virhe, vaan oikea "sivua ei ole".

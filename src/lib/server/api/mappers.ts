@@ -26,11 +26,16 @@ import type {
 	RawRaceListResponse,
 	RawRaceResultDriver,
 	RawRaceResultResponse,
+	RawReviewListResponse,
+	RawReviewLoginResponse,
+	RawReviewTargetResponse,
 	RawSeasonRacesResponse,
 	RawSeasonSummary,
 	RawStatsCompleteResponse,
 	RawStatsResponse,
+	RawSubmitReviewResponse,
 	RawTrack,
+	RawTrackCarReviewsResponse,
 	RawTrackListResponse
 } from './types.ts';
 
@@ -1584,3 +1589,231 @@ export function mapRaceChartData(raw: RawRaceChartResponse): RaceChartData {
 		}))
 	};
 }
+
+/**
+ * Arvostelut (reviews) — UUSI 2.10.2026, ks. types.ts:n RawReviewLogin
+ * Response-kommentti API:n erikoisuuksista. Nämä funktiot ovat se KOHTA
+ * jossa `success: false` -virhevastaukset erotetaan onnistumisesta —
+ * koska `client.ts`:n `postReviewLogin`/`postReview` EIVÄT heitä HTTP-
+ * virheistä (ks. niiden kommentti), tämä on AINOA paikka jossa kutsuja
+ * saa tietää onnistuiko pyyntö.
+ */
+
+export interface ReviewLoginCar {
+	carId: number;
+	name: string;
+	races: number;
+}
+
+export interface ReviewLoginTrack {
+	trackId: string;
+	trackName: string;
+	races: number;
+}
+
+export interface ReviewLoginCombo {
+	carId: number;
+	trackId: string;
+	races: number;
+}
+
+export interface MyReview {
+	carId: number | null;
+	trackId: string | null;
+	score: number;
+	note?: string;
+	updatedAt: string;
+}
+
+export interface ReviewSession {
+	token: string;
+	driverName: string;
+	cars: ReviewLoginCar[];
+	tracks: ReviewLoginTrack[];
+	combos: ReviewLoginCombo[];
+	myReviews: MyReview[];
+}
+
+export type ReviewLoginResult = { ok: true; session: ReviewSession } | { ok: false; error: string };
+
+/**
+ * `ok: false` kun API antoi `success: false` (väärä SteamID/salasana,
+ * 401) — `raw.message` on TÄLLÖIN käyttäjälle näytettävä valmis
+ * suomenkielinen/englanninkielinen virhe suoraan API:lta (ks. API-
+ * REFERENCE.md: "Wrong Steam id or password"). Ei käännetä sitä, koska
+ * emme tiedä etukäteen millä kielellä API sen antaa.
+ */
+/**
+ * API:n virheviestit (`message`/`error`/`errors.*`) ovat ENGLANNIKSI ja
+ * KIINTEÄÄ tekstiä (ks. API-REFERENCE.md:n luvun 11 esimerkit) — UUSI
+ * 2.10.2026, käyttäjän pyyntö: ei enää välitetä niitä sellaisenaan
+ * käyttäjälle, vaan KÄÄNNETÄÄN tunnetut, dokumentoidut viestit suomeksi.
+ * Tuntematon/uusi viesti (esim. jos backend joskus lisää uuden validointi-
+ * säännön) saa SILTI aina suomenkielisen YLEISEN virheen alla olevassa
+ * `mapReviewLogin`/`mapSubmitReview`:n fallback-ketjussa — rajapinnan
+ * tarkkaa tekstiä EI koskaan näytetä kääntämättömänä, vaikka emme
+ * tunnistaisikaan sitä.
+ */
+const KNOWN_API_MESSAGES: Record<string, string> = {
+	'Wrong Steam id or password': 'Väärä Steam ID tai salasana.',
+	'Authentication required': 'Istunto on vanhentunut — kirjaudu uudelleen.'
+};
+
+function translateKnownApiMessage(message: string | undefined): string | undefined {
+	if (!message) return undefined;
+	return KNOWN_API_MESSAGES[message];
+}
+
+export function mapReviewLogin(raw: RawReviewLoginResponse): ReviewLoginResult {
+	if (!raw.success || !raw.token) {
+		return { ok: false, error: translateKnownApiMessage(raw.message) ?? 'Kirjautuminen epäonnistui. Tarkista Steam ID ja salasana.' };
+	}
+
+	return {
+		ok: true,
+		session: {
+			token: raw.token,
+			driverName: raw.name ?? '',
+			cars: raw.cars ?? [],
+			tracks: raw.tracks ?? [],
+			combos: raw.combos ?? [],
+			myReviews: (raw.myReviews ?? []).map((review) => ({
+				carId: review.carId,
+				trackId: review.trackId,
+				score: review.score,
+				note: review.note ?? undefined,
+				updatedAt: review.updatedAt
+			}))
+		}
+	};
+}
+
+export type SubmitReviewResult =
+	| { ok: true; carId: number | null; trackId: string | null; score: number; note?: string }
+	| {
+			ok: false;
+			error: string;
+			/** Kenttäkohtaiset validointisyyt (422) — `undefined` 401:llä (token vanhentunut/puuttuu), jolloin `error` yksin riittää. */
+			fieldErrors?: { target?: string; score?: string; note?: string };
+	  };
+
+/**
+ * Kenttäkohtaiset validointiviestit (`errors.target`/`score`/`note`) —
+ * API:n OMA dokumentoitu esimerkki on "must be an integer 1-5" `score`:lle;
+ * muita TARKKOJA viestitekstejä ei ole dokumentoitu, joten näille ei voida
+ * taata täyttä käännöskattavuutta. Tunnistamattomat jätetään KÄÄNTÄMÄTTÄ
+ * tässä (eivät ole toistaiseksi edes näkyvissä UI:ssa, ks. ReviewItemForm.
+ * svelte — vain `error`/`message`-tason YLEINEN viesti näytetään), mutta
+ * tunnetut käännetään jos/kun niitä aletaan joskus näyttää.
+ */
+const KNOWN_FIELD_ERROR_MESSAGES: Record<string, string> = {
+	'must be an integer 1-5': 'Pisteen on oltava kokonaisluku väliltä 1-5.'
+};
+
+function translateFieldError(message: string | undefined): string | undefined {
+	if (!message) return undefined;
+	return KNOWN_FIELD_ERROR_MESSAGES[message] ?? message;
+}
+
+export function mapSubmitReview(raw: RawSubmitReviewResponse): SubmitReviewResult {
+	if (!raw.success) {
+		return {
+			ok: false,
+			error:
+				translateKnownApiMessage(raw.message) ??
+				translateFieldError(raw.error) ??
+				'Arvostelun tallennus epäonnistui. Tarkista pisteet (1-5) ja yritä uudelleen.',
+			fieldErrors: raw.errors && {
+				target: translateFieldError(raw.errors.target),
+				score: translateFieldError(raw.errors.score),
+				note: translateFieldError(raw.errors.note)
+			}
+		};
+	}
+
+	return {
+		ok: true,
+		carId: raw.carId ?? null,
+		trackId: raw.trackId ?? null,
+		score: raw.score ?? 0,
+		note: raw.note ?? undefined
+	};
+}
+
+export interface ReviewNote {
+	score: number;
+	note: string;
+	updatedAt: string;
+}
+
+export interface ReviewSummary {
+	count: number;
+	/** `undefined` kun ei yhtään arvostelua vielä — ei virhetila (ks. types.ts). */
+	average?: number;
+	/** Avaimet "1".."5" merkkijonoina, ks. types.ts:n RawReviewDistribution-kommentti. */
+	distribution: Record<string, number>;
+}
+
+export interface ReviewTarget {
+	carId: number | null;
+	trackId: string | null;
+	summary: ReviewSummary;
+	notes: ReviewNote[];
+}
+
+function mapReviewSummary(raw: RawReviewTargetResponse['summary']): ReviewSummary {
+	return {
+		count: raw.count,
+		average: raw.average ?? undefined,
+		distribution: raw.distribution
+	};
+}
+
+export function mapReviewTarget(raw: RawReviewTargetResponse): ReviewTarget {
+	return {
+		carId: raw.carId,
+		trackId: raw.trackId,
+		summary: mapReviewSummary(raw.summary),
+		notes: raw.notes
+	};
+}
+
+export interface ReviewListEntry {
+	/** Auton `carId` TAI radan `trackId` riippuen siitä kumpaa listaa tämä rivi edustaa — ks. `mapReviewList`:n `idKey`-parametri. */
+	id: number | string;
+	summary: ReviewSummary;
+}
+
+/**
+ * `/reviews/cars`/`/reviews/tracks` -listojen yhteinen muunnin — `idKey`
+ * kertoo luetaanko `carId` vai `trackId` kustakin rivistä (API antaa VAIN
+ * sen toisen, ei koskaan molempia samassa listassa). Palautetaan Map
+ * id:n mukaan, koska kutsuja (esim. autot/+page.server.ts) yhdistää tämän
+ * olemassa olevaan auto-/ratalistaan id:n perusteella — VAIN arvostellut
+ * kohteet ovat tässä listassa (ks. types.ts), loput näytetään "ei
+ * arvosteluja vielä" -tilassa UI:ssa.
+ */
+export function mapReviewList(raw: RawReviewListResponse, idKey: 'carId' | 'trackId'): Map<number | string, ReviewSummary> {
+	const byId = new Map<number | string, ReviewSummary>();
+	for (const entry of raw.data) {
+		const id = idKey === 'carId' ? entry.carId : entry.trackId;
+		if (id === undefined) continue;
+		byId.set(id, mapReviewSummary(entry));
+	}
+	return byId;
+}
+
+export interface TrackCarReviewEntry {
+	carId: number;
+	summary: ReviewSummary;
+}
+
+/** `/reviews/track/{trackId}/cars` — radan tarkennussivun "parhaat autot täällä" -listaa varten. */
+export function mapTrackCarReviews(raw: RawTrackCarReviewsResponse): TrackCarReviewEntry[] {
+	return raw.data
+		.filter((entry): entry is RawReviewListEntryWithCarId => entry.carId !== undefined)
+		.map((entry) => ({ carId: entry.carId, summary: mapReviewSummary(entry) }));
+}
+
+/** Apu-tyyppi `mapTrackCarReviews`:n suodatukselle — sama rivi kuin `RawReviewListEntry`, mutta `carId` on TÄSSÄ taattu läsnäolevaksi suodatuksen jälkeen. */
+type RawReviewListEntryWithCarId = RawTrackCarReviewsResponse['data'][number] & { carId: number };

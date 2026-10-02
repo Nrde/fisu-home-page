@@ -45,6 +45,8 @@
 	 * riittää tavalliselle vaihtelulle, eikä poikkeustapausta varten
 	 * tarvitse enää rakentaa erillistä rivimuotoa.
 	 */
+	import ReviewBadge from './ReviewBadge.svelte';
+
 	let {
 		id,
 		name,
@@ -52,7 +54,9 @@
 		length,
 		turns,
 		built,
-		imageUrl
+		imageUrl,
+		reviewAverage,
+		reviewCount
 	}: {
 		id: string;
 		name: string;
@@ -61,6 +65,9 @@
 		turns?: number;
 		built?: string;
 		imageUrl?: string;
+		/** Arvostelujen keskiarvo/määrä — UUSI 2.10.2026, ks. CarCard.svelte:n vastaavan propsin kommentti. */
+		reviewAverage?: number;
+		reviewCount?: number;
 	} = $props();
 
 	let imageFailed = $state(false);
@@ -70,6 +77,9 @@
 	<div class="track-card__heading">
 		<h3 class="track-card__name">{name}</h3>
 		<p class="track-card__location">{location}</p>
+		<div class="track-card__review">
+			<ReviewBadge average={reviewAverage} count={reviewCount ?? 0} />
+		</div>
 	</div>
 	<div class="track-card__frame">
 		<div class="track-card__media">
@@ -187,6 +197,10 @@
 		font-weight: 600;
 		font-size: clamp(0.78rem, 0.68rem + 0.6cqi, 0.85rem);
 		line-height: 1.3;
+	}
+
+	.track-card__review {
+		margin-top: var(--space-2);
 	}
 
 	/*

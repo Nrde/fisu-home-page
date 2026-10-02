@@ -18,7 +18,16 @@
 	{:else}
 		<div class="fluid-grid car-grid" data-gap="4">
 			{#each data.cars as car (car.id)}
-				<CarCard id={car.id} name={car.name} manufacturer={car.manufacturer} carClass={car.class} sim={car.sim} />
+				{@const review = data.reviewsByCarId[String(car.id)]}
+				<CarCard
+					id={car.id}
+					name={car.name}
+					manufacturer={car.manufacturer}
+					carClass={car.class}
+					sim={car.sim}
+					reviewAverage={review?.average}
+					reviewCount={review?.count}
+				/>
 			{/each}
 		</div>
 	{/if}

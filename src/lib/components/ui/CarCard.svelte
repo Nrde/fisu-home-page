@@ -19,13 +19,17 @@
 	 * näytetään kuva; muuten hillitty tekstiplaceholder, sama ratkaisu kuin
 	 * TrackCardilla puuttuvalle ratakartalle.
 	 */
+	import ReviewBadge from './ReviewBadge.svelte';
+
 	let {
 		id,
 		name,
 		manufacturer,
 		carClass,
 		sim,
-		logoUrl
+		logoUrl,
+		reviewAverage,
+		reviewCount
 	}: {
 		id: number;
 		name: string;
@@ -35,6 +39,16 @@
 		sim?: string;
 		/** Ks. yllä oleva komponenttikommentti — aina `undefined` toistaiseksi, ei API-kenttää vielä olemassa. */
 		logoUrl?: string;
+		/**
+		 * Arvostelujen keskiarvo/määrä — UUSI 2.10.2026, käyttäjän pyyntö
+		 * ("Then that info will be presented with the basic non dynamic
+		 * data on the UI"). `reviewAverage: undefined` + `reviewCount: 0`
+		 * näyttää "Ei arvosteluja" -badgen (ks. ReviewBadge.svelte), EI
+		 * piilota koko badgea — ero "ei arvioitu vielä" ja "puuttuva tieto"
+		 * välillä on tarkoituksella näkyvä.
+		 */
+		reviewAverage?: number;
+		reviewCount?: number;
 	} = $props();
 
 	let imageFailed = $state(false);
@@ -52,6 +66,10 @@
 	</div>
 
 	<h3 class="car-card__name">{name}</h3>
+
+	<div class="car-card__review">
+		<ReviewBadge average={reviewAverage} count={reviewCount ?? 0} />
+	</div>
 
 	<div class="car-card__stats">
 		<div class="stat" data-accent="info">
@@ -119,6 +137,11 @@
 		font-size: var(--font-size-lg);
 		font-weight: 800;
 		text-align: center;
+	}
+
+	.car-card__review {
+		display: flex;
+		justify-content: center;
 	}
 
 	/* KIINTEÄ 3 saraketta, sama tekniikka ja perustelu kuin
