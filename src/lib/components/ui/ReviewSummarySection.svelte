@@ -81,7 +81,12 @@
 
 <style>
 	.review-summary {
-		margin-top: var(--space-10);
+		/* KORJAUS 5.10.2026: `--space-10` ei ole olemassa tokens.css:ssä
+		   (ks. radat/[trackid]/+page.svelte:n `.combo-reviews`-kommentti
+		   samasta bugista) — tuntemattoman muuttujan `var()` ilman
+		   fallbackia teki `margin-top`:sta invalidin eli käytännössä 0.
+		   Korjattu `--space-8`:ksi. */
+		margin-top: var(--space-8);
 	}
 
 	.review-summary__title {

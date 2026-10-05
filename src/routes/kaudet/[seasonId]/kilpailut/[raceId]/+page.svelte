@@ -89,6 +89,18 @@
 
 	<h1 class="race-name">{data.result.trackName}</h1>
 	<p class="race-season">{data.result.seasonName}</p>
+	<!--
+		Käyttäjän pyyntö 5.10.2026: linkki kisasivulta vastaavalle rata-
+		sivulle — `LatestRaceResult.trackId` oli jo olemassa mappers.ts:ssä
+		juuri tätä varten (ks. sen kommentti "käytetään mm. kisasivun
+		'Rataprofiili'-linkkiin"), vain itse linkki puuttui tältä sivulta.
+		`trackId` on optionaalinen (vanhemmat kisat, joilla ei ole API:n
+		antamaa trackId:tä, ks. mapLatestRaceResult) — linkki piilotetaan
+		kokonaan sellaisilla, ei näytetä rikkinäistä linkkiä.
+	-->
+	{#if data.result.trackId}
+		<a href="/radat/{data.result.trackId}" class="link track-link">Radan sivulle →</a>
+	{/if}
 
 	<CarList cars={data.cars} />
 
@@ -159,9 +171,15 @@
 
 	.race-season {
 		margin-top: var(--space-1);
-		margin-bottom: var(--space-8);
+		margin-bottom: var(--space-4);
 		color: var(--color-text-muted);
 		font-weight: 600;
+	}
+
+	.track-link {
+		display: inline-block;
+		margin-bottom: var(--space-8);
+		font-size: var(--font-size-sm);
 	}
 
 	.result-grid {

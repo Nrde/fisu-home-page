@@ -818,7 +818,14 @@
 	}
 
 	.combo-reviews {
-		margin-top: var(--space-10);
+		/* KORJAUS 5.10.2026 (käyttäjän raportoima "liian vähän top marginia"):
+		   `--space-10` EI ole olemassa tokens.css:ssä (vain 1/2/3/4/6/8/12/16
+		   on määritelty) — `var()`-viittaus tuntemattomaan muuttujaan ilman
+		   fallbackia tekee koko arvosta invalidin, jolloin selain käyttää
+		   `margin-top`:n OLETUSARVOA (0) sen sijaan että näyttäisi minkäänlaista
+		   virhettä. Korjattu olemassa olevaksi `--space-8`:ksi, sama väli kuin
+		   `.race-history`:llä tällä samalla sivulla. */
+		margin-top: var(--space-8);
 	}
 
 	.combo-reviews__title {

@@ -295,7 +295,9 @@
 	}
 
 	.section-title {
-		margin-top: var(--space-10);
+		/* KORJAUS 5.10.2026: `--space-10` ei ole olemassa tokens.css:ssä, ks.
+		   sama bugi radat/[trackid]/+page.svelte:n `.combo-reviews`-kommentissa. */
+		margin-top: var(--space-8);
 		margin-bottom: var(--space-4);
 		font-size: var(--font-size-xl);
 		font-weight: 800;
