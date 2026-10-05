@@ -10,6 +10,14 @@
 	  - Yksi rivi per muutoskohta.
 -->
 
+## 5.10.2026 18:53
+
+- Uusi "Arvostelut"-sivu: kirjaudu Steam ID:llä ja FISU:n Discordista löytyvällä salasanalla, ja anna 1–5 tähden arvosana ajamillesi autoille, radoille ja auto+rata-yhdistelmille. Arvostelut ovat täysin anonyymejä — kukaan ei näe kuka arvioi mitäkin.
+- Autojen ja ratojen listoissa sekä niiden omilla sivuilla näkyy nyt yhteisön keskiarvo ja arvostelujen määrä, plus radan sivulla lista "parhaista autoista tällä radalla" muiden arvostelujen perusteella.
+- Kisasivulta pääsee nyt suoraan radan omalle sivulle linkistä otsikon alla — aiemmin piti etsiä rata erikseen Radat-valikosta.
+- Sivujen latautuessa näkyy nyt ohut latauspalkki ruudun yläreunassa heti linkkiä klikatessa, jotta sivusto ei tunnu jumittavan hiljaisella hetkellä ennen kuin seuraava sivu ilmestyy.
+- Korjattu pieni ulkoasubugi: "Parhaat autot tällä radalla" -otsikolla oli liian vähän marginaalia
+
 ## 1.10.2026 21:03
 
 - Selaimen välilehdessä ja kirjanmerkeissä näkyvä kuvake ("favicon") on nyt vihdoin FISU:n oma logo — Vihdoin myös lukutaidottomat osaavat valita sivun bookmarkeista.
