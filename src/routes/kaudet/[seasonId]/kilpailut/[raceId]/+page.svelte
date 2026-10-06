@@ -128,9 +128,14 @@
 	<div class="fluid-grid result-grid" data-minsize="360px" data-gap="2" data-density="compact">
 		{#each resultGroups as group (group.split ?? 'all')}
 			{#if group.split !== null}
-				<div class="split-divider">Split {group.split}</div>
+				<!-- UUSI 6.10.2026 (`subRaces`-tuki): ihmisluettava `splitLabel`
+				     ("Lähtö 1" tms.) hardkoodatun "Split {n}"-tekstin sijaan —
+				     ks. mappers.ts:n `RaceResultEntry.splitLabel`-kommentti.
+				     `group.items[0]` on aina olemassa (ryhmä rakennetaan vain
+				     kun siihen työnnetään vähintään yksi tulos). -->
+				<div class="split-divider">{group.items[0].splitLabel}</div>
 			{/if}
-			{#each group.items as result (result.driverId)}
+			{#each group.items as result (result.driverId + '|' + (result.split ?? ''))}
 				<div class="result-grid__item" animate:flip={{ duration: 350, easing: cubicOut }}>
 					<RaceResultRow
 						position={result.position}
