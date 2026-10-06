@@ -274,6 +274,25 @@ export type RawFinishedRaceIdsResponse = number[];
  * tätä kenttää). Myös vastauksen JUURESSA (ei per-kuljettaja) on nyt
  * `trackId: string | null` — sama arvoavaruus kuin `/tracks`-endpointin
  * `trackid`:ssä ja `/races/{season}`:n uudessa `trackId`-kentässä.
+ *
+ * KRIITTINEN PÄIVITYS (6.10.2026, API-tiimin bugiraportti "Fixing the race
+ * results page for multi-start races"): `drivers` on AVAINPARI-OLIO
+ * KULJETTAJAN id:llä, eli se EI KOSKAAN ole voinut sisältää kahta tulosta
+ * samalta kuljettajalta. Osa kisoista (KOKO kausi 7, ja mikä tahansa tuleva
+ * kisa jossa on useampi lähtö tai useampi splitti) tuottaa kuitenkin
+ * TODELLISUUDESSA kaksi tai useamman ERILLISEN tuloksen per kuljettaja
+ * (yksi per lähtö/splitti) — `drivers` näytti tällöin vain kuljettajan
+ * ENSIMMÄISEN tuloksen, ja esim. "110 pistettä" -kaltaiset mahdottomat
+ * lukemat tuotannossa (ks. `/kaudet/80/kilpailut/390`) johtuivat tästä.
+ * UUSI `subRaces`-kenttä (alla) on nyt AINOA LUOTETTAVA lähde — se on AINA
+ * mukana (myös tavallisella kisalla, jolloin se on yhden alkion taulukko)
+ * ja sisältää TÄYDELLISEN, itsenäisen tulosjoukon per lähtö/splitti.
+ * `mapLatestRaceResult` EI enää lue `drivers`-kenttää lainkaan — vain
+ * `subRaces`:ia, litistettynä yhdeksi listaksi joka säilyttää per-rivin
+ * `split`:in (ks. mappers.ts:n kommentti miksi `drivers`-kenttä on silti
+ * tyypitetty tähän: API palauttaa sen edelleen rinnakkain, emme vain lue
+ * sitä). `drivers`-kenttä on TAHALLAAN jätetty tyypitykseen dokumentoimaan
+ * API:n oma vastausmuoto, vaikka sitä ei enää käytetä.
  */
 export interface RawRaceResultResponse {
 	success: boolean;
@@ -281,7 +300,17 @@ export interface RawRaceResultResponse {
 		racename: string;
 		seasonname: string;
 		trackId: string | null;
+		/** @deprecated EI enää ENSISIJAISESTI luettu (ks. yllä oleva kommentti) — käytä `subRaces`:ia. Toimii silti FALLBACKINA mappers.ts:ssä niin kauan kuin `subRaces` ei ole vielä kaikkien kisojen vastauksissa (ks. alla). */
 		drivers: Record<string, RawRaceResultDriver>;
+		/**
+		 * VALINNAINEN (todettu käytännössä 6.10.2026, ks. mappers.ts:n
+		 * `mapLatestRaceResult`-kommentti): API-tiimin ohje sanoi tämän olevan
+		 * "aina mukana", mutta ainakin osa vastauksista (esim. kisa 882) ei
+		 * sitä vielä antanut. `undefined`/puuttuva EI siis ole varmasti bugi
+		 * tässä nimenomaisessa kisassa — mapperi pudottautuu tällöin `drivers`-
+		 * kenttään yhtenä ryhmänä.
+		 */
+		subRaces?: RawSubRace[];
 		/**
 		 * UUSI 26.9.2026, käyttäjän vahvistama — SAMA kenttä ja muoto kuin
 		 * `RawRaceListEntry.raceTime`/`raceTimeMs` (`/races/{season}`:ssa),
@@ -291,6 +320,31 @@ export interface RawRaceResultResponse {
 		raceTime?: string;
 		raceTimeMs?: number;
 	};
+}
+
+/**
+ * UUSI 6.10.2026 — yksi ITSENÄINEN tulosjoukko (yksi lähtö/splitti) kisan
+ * sisällä, ks. `RawRaceResultResponse`-kommentti. Tavallisella kisalla
+ * (ei splittejä/useita lähtöjä) `subRaces` on YHDEN alkion taulukko.
+ */
+export interface RawSubRace {
+	/**
+	 * SAMA arvoavaruus/merkitys kuin `RawRaceResultDriver.split`:ssä (joka
+	 * on myös edelleen läsnä per kuljettaja tässä samassa rakenteessa,
+	 * redundantisti) — `null` tavallisella kisalla, muuten kokonaisluku.
+	 * Kuvaa SEKÄ oikeita rinnakkaisia splittejä ETTÄ peräkkäisiä lähtöjä
+	 * (esim. kauden 7 kaksi-lähtöä-per-kisa -formaatti) samalla tavalla,
+	 * koska näyttösääntö on kummallekin identtinen.
+	 */
+	split: number | null;
+	/**
+	 * Ihmisluettava nimi (esim. "Lähtö 1") kun API antaa sellaisen,
+	 * MUUTEN `null` (vanhemmat/livenä raapitut splitit eivät aina saa
+	 * siistiä nimeä) — tällöin UI:n pitää näyttää "Split {split}" sen
+	 * sijaan että jätettäisiin otsikko kokonaan pois.
+	 */
+	label: string | null;
+	drivers: Record<string, RawRaceResultDriver>;
 }
 
 /**

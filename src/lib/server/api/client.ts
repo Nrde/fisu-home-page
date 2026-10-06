@@ -205,7 +205,9 @@ export function fetchFinishedRaceIds(fetchFn: typeof fetch, seasonId: number) {
  * Hakee yksittäisen kisan tulokset. HUOM: `RawRaceResultResponse`
  * (types.ts) mallintaa jo itse KOKO `{ success, data }` -kääreen, joten
  * tämä käyttää suoraan `apiFetch`ia eikä `apiFetchEnvelope`-purkajaa —
- * `mapLatestRaceResult` lukee `response.data.drivers` itse.
+ * `mapLatestRaceResult` lukee `response.data.subRaces`:n itse (EI enää
+ * `response.data.drivers`:ia, ks. types.ts:n `RawRaceResultResponse`-
+ * kommentti 6.10.2026 alkaen).
  */
 export function fetchRaceResult(fetchFn: typeof fetch, raceId: number) {
 	return apiFetch<RawRaceResultResponse>(fetchFn, `/results/race/${raceId}`);

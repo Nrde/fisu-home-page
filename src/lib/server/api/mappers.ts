@@ -34,6 +34,7 @@ import type {
 	RawStatsCompleteResponse,
 	RawStatsResponse,
 	RawSubmitReviewResponse,
+	RawSubRace,
 	RawTrack,
 	RawTrackCarReviewsResponse,
 	RawTrackListResponse
@@ -409,6 +410,15 @@ export interface RaceResultEntry extends WithDisplayPosition {
 	 * splittiä kisassa on, se selviää `results`:n eri `split`-arvoista.
 	 */
 	split: number | null;
+	/**
+	 * UUSI 6.10.2026 (`subRaces`-tuki, ks. types.ts:n `RawSubRace`-kommentti):
+	 * tämän rivin OMAN `subRace`:n ihmisluettava otsikko — API:n `label` jos
+	 * annettu (esim. "Lähtö 1"), MUUTEN "Split {split}" -fallback. `null`
+	 * VAIN kun `split` on `null` (tavallinen kisa, ei otsikkoa näytettäväksi
+	 * lainkaan). Käytetään splittijaon väliotsikkona UI:ssa `split`-kentän
+	 * numeron sijaan, koska API-tiimin oma ohje suosii ihmisluettavaa nimeä.
+	 */
+	splitLabel: string | null;
 }
 
 export interface LatestRaceResult {
@@ -485,10 +495,17 @@ function formatSecondsAsClock(totalSeconds: number): string {
  * `driverKey` on `drivers`-olion oma avain (esim. "580") — käytetään
  * `driverId`:nä ENSISIJAISESTI, koska se on taatusti uniikki (se ON
  * oliolla avain) — `raw.driverId` varalla jos avain jostain syystä puuttuisi.
+ *
+ * `split`/`splitLabel` tulevat NYT (6.10.2026) OMISTAVALTA `RawSubRace`:lta
+ * kutsujan (`mapLatestRaceResult`) kautta, EI `raw.split`:stä — subRace on
+ * nyt tämän tiedon AUKTORITATIIVINEN lähde (ks. types.ts:n `RawSubRace`-
+ * kommentti), vaikka `raw.split` todennäköisesti täsmää siihen muutenkin.
  */
 function normalizeDriverRow(
 	driverKey: string,
-	raw: RawRaceResultDriver
+	raw: RawRaceResultDriver,
+	split: number | null,
+	splitLabel: string | null
 ): Omit<RaceResultEntry, 'displayPosition'> | undefined {
 	const position = Number(raw.position);
 	const name = raw.name;
@@ -507,7 +524,8 @@ function normalizeDriverRow(
 		fastestLap: raw.fastestLap ?? false,
 		positionChange: normalizePositionChange(raw),
 		dnf: normalizeDnf(raw),
-		split: raw.split ?? null
+		split,
+		splitLabel
 	};
 }
 
@@ -577,9 +595,37 @@ export function pickLatestFinishedRaceId(finishedRaceIds: number[]): number | un
 	return finishedRaceIds.at(-1);
 }
 
+/**
+ * BUGIKORJAUS (6.10.2026, API-tiimin raportti): litistää `response.data.
+ * subRaces`:n YHDEKSI listaksi `response.data.drivers`:n sijaan — ks.
+ * types.ts:n `RawRaceResultResponse`-kommentti SIITÄ MIKSI `drivers` ei
+ * koskaan voinut edustaa useamman lähdön/splitin kisaa oikein (avainpari-
+ * olio per kuljettaja-id, max yksi tulos per kuljettaja). SAMA kuljettaja
+ * voi nyt esiintyä tässä litistetyssä listassa USEAMPAAN KERTAAN (kerran
+ * per `subRace` jossa hän ajoi) — kutsujien (sivujen `{#each}`-avaimet)
+ * on siis käytettävä `driverId`+`split`-YHDISTELMÄÄ avaimena, EI pelkkää
+ * `driverId`:tä, joka ei enää ole taattu uniikki tässä listassa.
+ *
+ * VARMISTUS (6.10.2026, havaittu käytännössä HETI käyttöönoton jälkeen —
+ * kisa 882:n `/results/race/882`-vastauksessa EI OLLUT `subRaces`-kenttää
+ * lainkaan, vaikka API-tiimin ohje sanoi sen olevan "aina mukana"):
+ * `subRaces` EI siis vielä ole käytössä kaikilla kisoilla/kaikissa API:n
+ * osissa tätä kirjoitettaessa. Pudotaan puuttuessa takaisin vanhaan
+ * `drivers`-kenttään YHTENÄ `split: null`-ryhmänä (täsmälleen entinen
+ * käytös) sen sijaan että koko sivu kaatuisi `TypeError`:iin — poistetaan
+ * tämä varmistus myöhemmin kun API-tiimi vahvistaa `subRaces`:n olevan
+ * aidosti joka vastauksessa.
+ */
 export function mapLatestRaceResult(raceId: number, response: RawRaceResultResponse): LatestRaceResult {
-	const results = Object.entries(response.data.drivers)
-		.map(([driverKey, raw]) => normalizeDriverRow(driverKey, raw))
+	const subRaces: RawSubRace[] =
+		response.data.subRaces ?? [{ split: null, label: null, drivers: response.data.drivers }];
+
+	const results = subRaces
+		.flatMap((subRace) => {
+			const split = subRace.split ?? null;
+			const label = subRace.label?.trim() ? subRace.label.trim() : split !== null ? `Split ${split}` : null;
+			return Object.entries(subRace.drivers).map(([driverKey, raw]) => normalizeDriverRow(driverKey, raw, split, label));
+		})
 		.filter((entry): entry is Omit<RaceResultEntry, 'displayPosition'> => entry !== undefined)
 		.sort(compareBySplitThenPosition);
 
