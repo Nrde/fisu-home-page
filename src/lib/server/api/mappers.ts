@@ -501,12 +501,37 @@ function formatSecondsAsClock(totalSeconds: number): string {
  * nyt tämän tiedon AUKTORITATIIVINEN lähde (ks. types.ts:n `RawSubRace`-
  * kommentti), vaikka `raw.split` todennäköisesti täsmää siihen muutenkin.
  */
+/**
+ * BUGIKORJAUS (7.10.2026, API-tiimin raportti "Fixing the race results
+ * page" -seurantaviesti): kisassa `/results/race/-1` (FiSU Season #1/#2
+ * -historiadataa) nähtiin ENSIMMÄISTÄ KERTAA `position: ""` (tyhjä
+ * merkkijono) yhdellä DNF-kuljettajalla — KAIKKI aiemmat kisat ovat AINA
+ * antaneet oikean kokonaislukusijoituksen myös DNF:lle (DNF tunnistetaan
+ * `normalizeDnf`:ssä `points === 0`:sta, EI puuttuvasta sijoituksesta).
+ * `Number("")` on JavaScriptissä `0`, EI `NaN` — SAMA kompastuskivi kuin
+ * `normalizePositionChange`:ssa korjattiin 30.9.2026 (`Number("")`/
+ * `Number(null)` läpäisevät `Number.isFinite`-tarkistuksen virheellisesti).
+ * Ilman tätä tarkistusta rivi olisi saanut `position: 0`:n ja noussut
+ * VIRHEELLISESTI listan KÄRKEEN (syy käyttäjän havaitsemaan "DNF
+ * sijalla 0 ylimpänä" -oireeseen). API-tiimi ei itsekään vielä tiedä
+ * MITÄ sijoitusta tällaiselle "ei koskaan luokiteltu" -DNF:lle pitäisi
+ * näyttää (ei ole ennen esiintynyt) — turvallisin ratkaisu TOISTAISEKSI
+ * on JÄTTÄÄ tällainen rivi KOKONAAN POIS tulosjoukosta (sama kohtelu kuin
+ * puuttuvalla `position`:illa/`name`:lla jo ennestään yllä olevassa
+ * tarkistuksessa) sen sijaan että ARVATTAISIIN sijoitus tai keksittäisiin
+ * oma näyttökonventio yksipuolisesti — kuljettaja säilyy silti NÄKYVISSÄ
+ * esim. kuljettajan omalla uracsivulla (`/drivers/.../career`, joka ei
+ * käytä tätä funktiota), vain TÄMÄN yksittäisen kisan tuloslistasta
+ * puuttuu kunnes API-tiimi vahvistaa oikean näyttötavan.
+ */
 function normalizeDriverRow(
 	driverKey: string,
 	raw: RawRaceResultDriver,
 	split: number | null,
 	splitLabel: string | null
 ): Omit<RaceResultEntry, 'displayPosition'> | undefined {
+	if (raw.position === '' || raw.position === null || raw.position === undefined) return undefined;
+
 	const position = Number(raw.position);
 	const name = raw.name;
 	if (!Number.isFinite(position) || !name) return undefined;
