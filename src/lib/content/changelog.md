@@ -10,6 +10,11 @@
 	  - Yksi rivi per muutoskohta.
 -->
 
+## 9.10.2026 22:42
+
+- ISO API päivitys, ehkä kaikki bugit korjattu, riivitty kasaan kadonneet kisat ja kaudet jne. 
+- Kahden tai useamman lähdön kisat, kahden tai useamman splitin kisat ja niiden yhdistelmät näkyvät nyt toivottavasti oikein.
+
 ## 5.10.2026 18:53
 
 - Uusi "Arvostelut"-sivu: kirjaudu Steam ID:llä ja FISU:n Discordista löytyvällä salasanalla, ja anna 1–5 tähden arvosana ajamillesi autoille, radoille ja auto+rata-yhdistelmille. Arvostelut ovat täysin anonyymejä — kukaan ei näe kuka arvioi mitäkin.
