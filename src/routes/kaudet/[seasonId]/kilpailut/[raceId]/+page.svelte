@@ -63,16 +63,24 @@
 	 * `{#each}` jonka AINOA lapsi on animate:flip-elementti) — ks. +page.svelte:n
 	 * templaatti.
 	 */
+	/**
+	 * KORJAUS 10.10.2026 (käyttäjän raportoima `each_key_duplicate`-
+	 * kaatuminen kisalla 36): ryhmittely vaihdettu `split`:stä
+	 * `sessionOrder`:iin — ks. mappers.ts:n `RaceResultEntry.split`-
+	 * kommentti SIITÄ MIKSI (kisa 36:lla kaksi ERI sessiota saivat
+	 * MOLEMMAT `split: null`, jolloin vanha `split`-pohjainen ryhmittely
+	 * sekoitti ne yhdeksi "ryhmäksi" ja johti duplikaattiavaimeen).
+	 */
 	const resultGroups = $derived.by(() => {
-		if (resultSort !== 'position') return [{ split: null as number | null, items: sortedResults }];
+		if (resultSort !== 'position') return [{ sessionOrder: -1, items: sortedResults }];
 
-		const groups: { split: number | null; items: typeof sortedResults }[] = [];
+		const groups: { sessionOrder: number; items: typeof sortedResults }[] = [];
 		for (const result of sortedResults) {
 			const currentGroup = groups.at(-1);
-			if (currentGroup && currentGroup.split === result.split) {
+			if (currentGroup && currentGroup.sessionOrder === result.sessionOrder) {
 				currentGroup.items.push(result);
 			} else {
-				groups.push({ split: result.split, items: [result] });
+				groups.push({ sessionOrder: result.sessionOrder, items: [result] });
 			}
 		}
 		return groups;
@@ -118,30 +126,34 @@
 	     kuljettajille sama paikka näyttää edelleen eron voittajaan (`result.gapDisplay`),
 	     ks. mappers.ts:n `LatestRaceResult.raceTime`-kommentti. PÄIVITYS 27.9.2026
 	     (splittien käyttöönotto): `raceTime` on YKSI arvo koko kisalle, joten se
-	     annetaan VAIN "oikealle" voittajalle (ei-splitattu kisa, TAI splitin 1 oma P1)
-	     — muiden splittien omat P1-rivit näyttävät tyhjän kuten ennen splittejä, koska
-	     emme tiedä oliko `raceTime` NIMENOMAAN sen splitin voittajan aika. -->
+	     annetaan VAIN "oikealle" voittajalle (ensimmäisen session P1, KORJATTU
+	     10.10.2026 käyttämään `sessionOrder === 0`:aa `split`:n sijaan — ks.
+	     mappers.ts:n RaceResultEntry.split-kommentti) — muiden sessioiden omat
+	     P1-rivit näyttävät tyhjän kuten ennen, koska emme tiedä oliko `raceTime`
+	     NIMENOMAAN sen session voittajan aika. -->
 	<!-- Käyttäjän pyyntö 26.9.2026: leveämmät kortit (320px -> 360px) + pienempi
 	     ruudukon väli (data-gap 3 -> 2) — pitkä nimi ("Lucky like Fauntleroy")
 	     ahtautui DNF/sijoitusmuutos-badgen kanssa kapeammilla korteilla, ks.
 	     myös ListRow.svelte:n `.list-row__name`-clamp-tweaksta samasta pyynnöstä. -->
 	<div class="fluid-grid result-grid" data-minsize="360px" data-gap="2" data-density="compact">
-		{#each resultGroups as group (group.split ?? 'all')}
-			{#if group.split !== null}
-				<!-- UUSI 6.10.2026 (`subRaces`-tuki): ihmisluettava `splitLabel`
-				     ("Lähtö 1" tms.) hardkoodatun "Split {n}"-tekstin sijaan —
-				     ks. mappers.ts:n `RaceResultEntry.splitLabel`-kommentti.
-				     `group.items[0]` on aina olemassa (ryhmä rakennetaan vain
-				     kun siihen työnnetään vähintään yksi tulos). -->
+		{#each resultGroups as group (group.sessionOrder)}
+			<!-- KORJATTU 10.10.2026 (each_key_duplicate-kaatuminen): otsikko
+			     näytetään kun on USEAMPI ryhmä, EI `split !== null`
+			     -tarkistuksella, ks. mappers.ts:n RaceResultEntry.split-
+			     kommentti SIITÄ MIKSI `split` ei enää riitä tähän.
+			     `splitLabel` ei ole enää koskaan `null`. `group.items[0]`
+			     on aina olemassa (ryhmä rakennetaan vain kun siihen
+			     työnnetään vähintään yksi tulos). -->
+			{#if resultGroups.length > 1}
 				<div class="split-divider">{group.items[0].splitLabel}</div>
 			{/if}
-			{#each group.items as result (result.driverId + '|' + (result.split ?? ''))}
+			{#each group.items as result (result.driverId + '|' + result.sessionOrder)}
 				<div class="result-grid__item" animate:flip={{ duration: 350, easing: cubicOut }}>
 					<RaceResultRow
 						position={result.position}
 						displayPosition={result.displayPosition}
 						name={result.name}
-						gapDisplay={result.position === 1 && (result.split === null || result.split === 1)
+						gapDisplay={result.position === 1 && result.sessionOrder === 0
 							? data.result.raceTime
 							: result.gapDisplay}
 						bestLapTime={result.bestLapTime}

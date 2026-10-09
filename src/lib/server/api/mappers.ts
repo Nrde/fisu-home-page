@@ -65,13 +65,23 @@ interface WithDisplayPosition {
  * Ilman tätä splitin 1 P1 ja splitin 3 P1 näyttäisivät virheellisesti
  * tasapeliltä, vaikka ne ovat eri kisoja eri pisteasteikoilla (ks.
  * types.ts:n `RawRaceResultDriver.split`-kommentti).
+ *
+ * BUGIKORJAUS (10.10.2026, käyttäjän raportoima `each_key_duplicate`):
+ * `split`-kenttä EI RIITÄ enää erottamaan eri sessioita toisistaan — kisa
+ * 36 (Road Atlanta Short Course) osoitti ETTÄ kaksi ERI sessiota
+ * (peräkkäiset lähdöt) voivat MOLEMMAT saada `splitNumber: null` API:sta,
+ * toisin kuin aiemmin oletettu "joko kaikki null tai ei kukaan" (ks. alla
+ * poistettu kommentti). Käytetään `sessionOrder`:ia (ks. RaceResultEntry-
+ * kommentti) VARSINAISENA tasapeli-/ryhmittelytunnisteena `split`:n sijaan
+ * — se on AINA yksiselitteinen (session-taulukon indeksi), toisin kuin
+ * `split` joka voi olla `null` useammalla ERI sessiolla samassa kisassa.
  */
-function computeDisplayPositions<T extends { position: number; split?: number | null }>(
+function computeDisplayPositions<T extends { position: number; sessionOrder?: number }>(
 	items: T[]
 ): (T & WithDisplayPosition)[] {
 	return items.map((item, index) => {
 		const prev = items[index - 1];
-		const isTie = index > 0 && prev.position === item.position && (prev.split ?? null) === (item.split ?? null);
+		const isTie = index > 0 && prev.position === item.position && (prev.sessionOrder ?? null) === (item.sessionOrder ?? null);
 		return {
 			...item,
 			displayPosition: isTie ? '=' : String(item.position)
@@ -80,19 +90,18 @@ function computeDisplayPositions<T extends { position: number; split?: number | 
 }
 
 /**
- * Lajittelee ENSISIJAISESTI `split`:n mukaan (pienin ensin, `null` VIIMEISENÄ
- * — käytännössä tämä ei koskaan törmää `null`:iin muiden kanssa samassa
- * listassa, koska joko KAIKKI kuljettajat ovat `split: null` tai KUKAAN ei
- * ole, ks. types.ts:n kommentti), TOISSIJAISESTI `position`:in mukaan.
- * Normaalilla kisalla (kaikki `split: null`) tämä käyttäytyy TÄSMÄLLEEN
- * samoin kuin pelkkä `position`-lajittelu ennen tätä muutosta — käyttäjän
- * pyyntö 27.9.2026: "split 1 drivers should always be before split 2
- * drivers etc.".
+ * Lajittelee ENSISIJAISESTI `sessionOrder`:n mukaan (session-taulukon
+ * alkuperäinen järjestys — ks. RaceResultEntry-kommentti SIITÄ MIKSI
+ * `split` ei riitä tähän, 10.10.2026), TOISSIJAISESTI `position`:in
+ * mukaan. Normaalilla kisalla (yksi sessio) tämä käyttäytyy TÄSMÄLLEEN
+ * samoin kuin pelkkä `position`-lajittelu — käyttäjän pyyntö 27.9.2026:
+ * "split 1 drivers should always be before split 2 drivers etc." pätee
+ * edelleen, koska `sessionOrder` seuraa samaa järjestystä kuin `split`
+ * normaalisti olisi tehnyt, mutta toimii myös silloin kun `split` itse
+ * ei erottele sessioita (edellä mainittu kisa 36 -tapaus).
  */
-function compareBySplitThenPosition(a: { split: number | null; position: number }, b: { split: number | null; position: number }): number {
-	const splitA = a.split ?? Number.POSITIVE_INFINITY;
-	const splitB = b.split ?? Number.POSITIVE_INFINITY;
-	if (splitA !== splitB) return splitA - splitB;
+function compareBySessionThenPosition(a: { sessionOrder: number; position: number }, b: { sessionOrder: number; position: number }): number {
+	if (a.sessionOrder !== b.sessionOrder) return a.sessionOrder - b.sessionOrder;
 	return a.position - b.position;
 }
 
@@ -380,13 +389,10 @@ export interface RaceResultEntry extends WithDisplayPosition {
 	 */
 	bestLapTime?: string;
 	/**
-	 * Ajoi KOKO KISAN nopeimman kierroksen. HISTORIA: API antoi tämän
-	 * VALMIINA 22.9.2026–9.10.2026 välillä. PALAUTETTU PÄÄTELTÄVÄKSI
-	 * 9.10.2026 (`/results/race/{roundId}`:n uusi `races[].results[]`
-	 * -muoto EI enää sisällä `fastestLap`-kenttää lainkaan) — `mapLatestRace
-	 * Result` vertailee taas itse kaikkien `bestLapMs`-arvojen PIENINTÄ,
-	 * sama periaate kuin ALKUPERÄISESSÄ (21.9.2026) toteutuksessa ennen
-	 * kuin API joskus antoi sen valmiina.
+	 * Ajoi KOKO KISAN nopeimman kierroksen. API:n valmis totuusarvo —
+	 * puuttui lyhyesti (9.–10.10.2026) uudesta `results[]`-muodosta
+	 * vahingossa, API-tiimi palautti sen 10.10.2026, ks. git-historia
+	 * jos tarvitsee nähdä väliaikaisen itse-laskevan toteutuksen.
 	 */
 	fastestLap: boolean;
 	/**
@@ -425,22 +431,35 @@ export interface RaceResultEntry extends WithDisplayPosition {
 	 * kisalla. Kun ei-`null`: `position`/`points`/`gapDisplay` ovat JO
 	 * TÄMÄN splitin sisäisiä — ÄLÄ vertaile niitä eri splitin kuljettajien
 	 * kanssa yhtenä listana (ks. types.ts:n `RawRaceSession.splitNumber`-
-	 * kommentti). `results`-taulukko on JÄRJESTETTY `split`:n mukaan ensin
-	 * (ks. `compareBySplitThenPosition`), joten UI voi näyttää "splitti
-	 * vaihtuu"-rajan aina kun tämä kenttä muuttuu edelliseen riviin
-	 * verrattuna PERÄKKÄISESSÄ listassa — ei tarvitse erikseen kysyä montako
-	 * splittiä kisassa on, se selviää `results`:n eri `split`-arvoista.
+	 * kommentti).
+	 *
+	 * HUOM (10.10.2026, käyttäjän raportoima `each_key_duplicate`-kaatuminen):
+	 * `split` EI ole enää luotettava RYHMITTELY-/UNIIKKI-tunniste — kisa 36
+	 * osoitti että KAKSI eri sessiota voivat MOLEMMAT saada `splitNumber:
+	 * null` (aiempi oletus "joko kaikki null tai ei kukaan" oli väärä).
+	 * Tätä kenttää käytetään siis NYT VAIN NÄYTTÖÄ varten (otsikkoteksti
+	 * `splitLabel`:n kautta) — `sessionOrder` (alla) on oikea kenttä
+	 * ryhmittelyyn/avaimiin/tasapelivertailuun, ks. `compareBySessionThen
+	 * Position`/`computeDisplayPositions`.
 	 */
 	split: number | null;
 	/**
-	 * Tämän rivin OMAN sessio/splitin ihmisluettava otsikko — API:n `label`
-	 * jos annettu (esim. "Lähtö 1"), MUUTEN "Split {split}" -fallback.
-	 * `null` VAIN kun `split` on `null` (tavallinen kisa, ei otsikkoa
-	 * näytettäväksi lainkaan). Käytetään splittijaon väliotsikkona UI:ssa
-	 * `split`-kentän numeron sijaan, koska API-tiimin oma ohje suosii
-	 * ihmisluettavaa nimeä.
+	 * Tämän rivin OMAN session ihmisluettava otsikko — API:n `label` jos
+	 * annettu (esim. "Lähtö 1"), MUUTEN "Split {split}" jos `split` on
+	 * tiedossa, MUUTEN "Lähtö {sessionOrder + 1}" (kisa 36 -tapaus: useita
+	 * sessioita, kaikilla `split: null`). EI enää koskaan `null` — UI
+	 * päättää ITSE näytetäänkö otsikko ollenkaan `resultGroups.length > 1`
+	 * -tarkistuksella (split/label-arvoista riippumatta), ei tämän kentän
+	 * arvon perusteella.
 	 */
-	splitLabel: string | null;
+	splitLabel: string;
+	/**
+	 * UUSI 10.10.2026 — session (eli `races[]`-taulukon alkion) 0-indeksoitu
+	 * järjestysnumero kisan SISÄLLÄ. Tämä, EI `split`, on tulosten OIKEA
+	 * ryhmittely-/tasapelitunniste (ks. `split`-kentän kommentti yllä) —
+	 * aina yksiselitteinen riippumatta siitä mitä API antaa `split`:lle.
+	 */
+	sessionOrder: number;
 }
 
 export interface LatestRaceResult {
@@ -565,7 +584,8 @@ function formatSecondsAsClock(totalSeconds: number): string {
 function normalizeSessionResult(
 	raw: RawRaceSessionResult,
 	split: number | null,
-	splitLabel: string | null
+	splitLabel: string,
+	sessionOrder: number
 ): Omit<RaceResultEntry, 'displayPosition'> | undefined {
 	if (raw.position === '' || raw.position === null || raw.position === undefined) return undefined;
 
@@ -587,7 +607,8 @@ function normalizeSessionResult(
 		// API:n valmis totuusarvo 9.10.2026 alkaen — EI enää päätellä `points === 0`:sta.
 		dnf: raw.dnf,
 		split,
-		splitLabel
+		splitLabel,
+		sessionOrder
 	};
 }
 
@@ -668,13 +689,16 @@ export function mapLatestRaceResult(
 	context: { seasonName: string }
 ): LatestRaceResult {
 	const results = response.data.races
-		.flatMap((session) => {
+		.flatMap((session, sessionOrder) => {
 			const split = session.splitNumber ?? null;
-			const label = session.label?.trim() ? session.label.trim() : split !== null ? `Split ${split}` : null;
-			return session.results.map((raw) => normalizeSessionResult(raw, split, label));
+			// Ks. RaceResultEntry.splitLabel-kommentti: kolmiportainen fallback,
+			// EI enää koskaan `null` (kisa 36 -tapaus: `sessionOrder`-pohjainen
+			// "Lähtö N" kun API ei anna label:ia TAI split:iä).
+			const label = session.label?.trim() ? session.label.trim() : split !== null ? `Split ${split}` : `Lähtö ${sessionOrder + 1}`;
+			return session.results.map((raw) => normalizeSessionResult(raw, split, label, sessionOrder));
 		})
 		.filter((entry): entry is Omit<RaceResultEntry, 'displayPosition'> => entry !== undefined)
-		.sort(compareBySplitThenPosition);
+		.sort(compareBySessionThenPosition);
 
 	return {
 		raceId,

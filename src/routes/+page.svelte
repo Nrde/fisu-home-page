@@ -85,22 +85,25 @@
 	});
 
 	/**
-	 * Ryhmittelee `sortedResults`:n splitin mukaan otsikkorivejä varten —
+	 * Ryhmittelee `sortedResults`:n SESSION mukaan otsikkorivejä varten —
 	 * sama periaate ja SAMA syy (Svelten `animate:flip`-rajoitus: keyed
 	 * `{#each}`-lohkon on oltava sen AINOA lapsi) kuin kisasivun
 	 * (`/kaudet/[seasonId]/kilpailut/[raceId]`) `resultGroups`:issa, ks.
-	 * sen kommentti.
+	 * sen kommentti — MYÖS sama 10.10.2026 korjaus: ryhmittely `split`:n
+	 * sijaan `sessionOrder`:n mukaan (ks. mappers.ts:n RaceResultEntry.
+	 * split-kommentti SIITÄ MIKSI — `split` voi olla `null` useammalla
+	 * ERI sessiolla samassa kisassa, `sessionOrder` ei koskaan).
 	 */
 	const resultGroups = $derived.by(() => {
-		if (resultSort !== 'position') return [{ split: null as number | null, items: sortedResults }];
+		if (resultSort !== 'position') return [{ sessionOrder: -1, items: sortedResults }];
 
-		const groups: { split: number | null; items: typeof sortedResults }[] = [];
+		const groups: { sessionOrder: number; items: typeof sortedResults }[] = [];
 		for (const result of sortedResults) {
 			const currentGroup = groups.at(-1);
-			if (currentGroup && currentGroup.split === result.split) {
+			if (currentGroup && currentGroup.sessionOrder === result.sessionOrder) {
 				currentGroup.items.push(result);
 			} else {
-				groups.push({ split: result.split, items: [result] });
+				groups.push({ sessionOrder: result.sessionOrder, items: [result] });
 			}
 		}
 		return groups;
@@ -218,26 +221,33 @@
 		     kuljettajille sama paikka näyttää edelleen eron voittajaan (`result.gapDisplay`),
 		     ks. mappers.ts:n `LatestRaceResult.raceTime`-kommentti. PÄIVITYS 27.9.2026
 		     (splittien käyttöönotto): `raceTime` annetaan VAIN "oikealle" voittajalle
-		     (ei-splitattu kisa, TAI splitin 1 oma P1) — ks. kisasivun vastaava kommentti. -->
+		     (ensimmäisen session P1) — KORJATTU 10.10.2026 käyttämään `sessionOrder
+		     === 0`:aa `split`:n sijaan, koska `split` ei enää luotettavasti erota
+		     sessioita (ks. mappers.ts:n RaceResultEntry.split-kommentti) — ks.
+		     kisasivun vastaava kommentti. -->
 		<!-- Käyttäjän pyyntö 26.9.2026: leveämmät kortit (320px -> 360px) + pienempi
 		     ruudukon väli (data-gap 3 -> 2) — pitkä nimi ("Lucky like Fauntleroy")
 		     ahtautui DNF/sijoitusmuutos-badgen kanssa kapeammilla korteilla, ks.
 		     myös ListRow.svelte:n `.list-row__name`-clamp-tweaksta samasta pyynnöstä. -->
 		<div class="fluid-grid result-grid" data-minsize="360px" data-gap="2" data-density="compact">
-			{#each resultGroups as group (group.split ?? 'all')}
-				{#if group.split !== null}
-					<!-- UUSI 6.10.2026 (`subRaces`-tuki): ihmisluettava `splitLabel`
-					     hardkoodatun "Split {n}"-tekstin sijaan, ks. mappers.ts:n
-					     `RaceResultEntry.splitLabel`-kommentti. -->
+			{#each resultGroups as group (group.sessionOrder)}
+				<!-- KORJATTU 10.10.2026 (each_key_duplicate-kaatuminen, ks.
+				     mappers.ts:n RaceResultEntry.split-kommentti): otsikko
+				     näytetään kun on USEAMPI ryhmä, EI `split !== null`
+				     -tarkistuksella — `split` voi olla `null` useammalla ERI
+				     sessiolla, jolloin se EI kerro luotettavasti "onko tämä
+				     tavallinen yhden sessio kisa". `splitLabel` ei ole enää
+				     koskaan `null`, ks. sen kommentti. -->
+				{#if resultGroups.length > 1}
 					<div class="split-divider">{group.items[0].splitLabel}</div>
 				{/if}
-				{#each group.items as result (result.driverId + '|' + (result.split ?? ''))}
+				{#each group.items as result (result.driverId + '|' + result.sessionOrder)}
 					<div class="result-grid__item" animate:flip={{ duration: 350, easing: cubicOut }}>
 						<RaceResultRow
 							position={result.position}
 							displayPosition={result.displayPosition}
 							name={result.name}
-							gapDisplay={result.position === 1 && (result.split === null || result.split === 1)
+							gapDisplay={result.position === 1 && result.sessionOrder === 0
 								? data.latestRaceResult.raceTime
 								: result.gapDisplay}
 							bestLapTime={result.bestLapTime}
