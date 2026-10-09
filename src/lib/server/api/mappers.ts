@@ -190,10 +190,22 @@ export function pickDisplaySeasonId(
 	// epäonnistuu AINA hiljaisesti eikä löydä koskaan yhtään kautta.
 	if (current.data) return Number(current.data.id);
 
-	return summary.reduce<number | undefined>((latest, season) => {
-		const seasonId = Number(season.seasonId);
-		return latest === undefined || seasonId > latest ? seasonId : latest;
-	}, undefined);
+	/*
+	 * BUGIKORJAUS (10.10.2026, käyttäjän raportoima "viimeisin kausi
+	 * etusivulla on ensimmäiseltä kaudelta"): tämä fallback-haara (käytössä
+	 * vain kun `/seasons/{organiser}/current` ei anna käynnissä olevaa
+	 * kautta) valitsi AIEMMIN kauden SUURIMMALLA `seasonId`:llä olettaen
+	 * että isompi id = uudempi kausi — PITI PAIKKANSA vanhassa id-
+	 * avaruudessa (juoksevasti kasvava simracing.fi-numero), mutta EI PIDÄ
+	 * PAIKKAANSA uudessa (9.10.2026) id-avaruudessa: esim. kausi 14 on
+	 * 2026 (uusin) mutta kausi 30 on 2018 (VANHIN) — id:t on ilmeisesti
+	 * annettu kahdessa erillisessä, keskenään ei-kronologisessa erässä
+	 * migraation yhteydessä. Tarkistettu käsin: `organiserSummary`:n OMA
+	 * JÄRJESTYS (taulukon indeksi, EI id:n arvo) ON edelleen luotettavasti
+	 * kronologinen uusin ensin — ensimmäinen alkio on siis se millä tämän
+	 * funktion pitäisi oikeasti korvata max-id-haku.
+	 */
+	return summary[0] ? Number(summary[0].seasonId) : undefined;
 }
 
 /**
@@ -884,23 +896,32 @@ export function mapSeasonList(
 	summary: RawOrganiserSummaryResponse,
 	ongoingSeasonId: number | undefined
 ): SeasonListEntry[] {
-	return summary
-		.map((season) => {
-			const leader = [...season.drivers].sort((a, b) => a.pos - b.pos)[0];
-			const id = Number(season.seasonId);
-			return {
-				id,
-				name: season.seasonName,
-				driversCount: season.drivers.length,
-				leaderName: leader?.name,
-				leaderPoints: leader?.pts,
-				// `Number(...)`: `season.seasonId` tulee NYT livenä merkkijonona
-				// (ks. types.ts:n `RawSeasonSummary.seasonId`-kommentti) — pelkkä
-				// `!==` epäonnistuisi hiljaisesti JOKA kaudella (aina "päättynyt").
-				isOver: id !== ongoingSeasonId
-			};
-		})
-		.sort((a, b) => b.id - a.id);
+	/*
+	 * BUGIKORJAUS (10.10.2026, käyttäjän raportoima "kaudet eivät ole
+	 * järjestyksessä"): `.sort((a, b) => b.id - a.id)` (uusin ensin
+	 * ID:N ARVON mukaan) POISTETTU — ks. `pickDisplaySeasonId`:n
+	 * päivitetty kommentti SAMASTA syystä: uudessa (9.10.2026) id-
+	 * avaruudessa isompi id EI tarkoita uudempaa kautta (id:t annettu
+	 * kahdessa eri, ei-kronologisessa erässä). `organiserSummary`:n OMA
+	 * taulukkojärjestys ON sen sijaan luotettavasti kronologinen uusin
+	 * ensin (tarkistettu käsin) — EI SIIS lajitella uudelleen ollenkaan,
+	 * säilytetään API:n oma järjestys sellaisenaan.
+	 */
+	return summary.map((season) => {
+		const leader = [...season.drivers].sort((a, b) => a.pos - b.pos)[0];
+		const id = Number(season.seasonId);
+		return {
+			id,
+			name: season.seasonName,
+			driversCount: season.drivers.length,
+			leaderName: leader?.name,
+			leaderPoints: leader?.pts,
+			// `Number(...)`: `season.seasonId` tulee NYT livenä merkkijonona
+			// (ks. types.ts:n `RawSeasonSummary.seasonId`-kommentti) — pelkkä
+			// `!==` epäonnistuisi hiljaisesti JOKA kaudella (aina "päättynyt").
+			isOver: id !== ongoingSeasonId
+		};
+	});
 }
 
 export interface SeasonRaceListEntry {
@@ -1166,19 +1187,25 @@ function deriveSeasonShortLabel(seasonName: string): string {
  * kauteen). HUOM: EI sama asia kuin `mapSeasonList`/`SeasonListEntry`
  * yllä — se on `/kaudet`-indeksisivun kausikortteja varten (johtaja,
  * pisteet, ym.), tämä on VAIN lyhyt nappimerkintä+id suodatinta varten.
- * Järjestetty NOUSEVASTI `seasonId`:n mukaan (vanhin ensin) —
- * TARKOITUKSELLA eri järjestys kuin muualla sivustolla ("uusin ensin"),
- * koska pikasuodatinnapit luetaan vasemmalta oikealle numerojärjestyksessä
- * ("S3, S4, S5...") eikä aikajärjestyksen käänteisenä.
+ * Järjestetty NOUSEVASTI (vanhin ensin) — TARKOITUKSELLA eri järjestys
+ * kuin muualla sivustolla ("uusin ensin"), koska pikasuodatinnapit
+ * luetaan vasemmalta oikealle numerojärjestyksessä ("S3, S4, S5...")
+ * eikä aikajärjestyksen käänteisenä.
+ *
+ * BUGIKORJAUS (10.10.2026, sama juurisyy kuin `mapSeasonList`/
+ * `pickDisplaySeasonId`:ssä): järjestys oli AIEMMIN `seasonId`:n
+ * ARVON mukaan nouseva — toimi vanhassa id-avaruudessa, mutta EI
+ * uudessa (9.10.2026, id:t eivät enää ole kronologisessa järjestyksessä
+ * arvoltaan). `organiserSummary`:n OMA taulukkojärjestys on uusin
+ * ensin, luotettavasti kronologinen — `.reverse()` sen päälle antaa
+ * siis vanhin ensin, oikein, riippumatta `seasonId`:n arvosta.
  */
 export function mapSeasonFilterOptions(summary: RawOrganiserSummaryResponse): SeasonFilterOption[] {
-	return summary
-		.map((season) => ({
-			seasonId: Number(season.seasonId),
-			seasonName: season.seasonName,
-			shortLabel: season.shortName ?? deriveSeasonShortLabel(season.seasonName)
-		}))
-		.sort((a, b) => a.seasonId - b.seasonId);
+	return [...summary].reverse().map((season) => ({
+		seasonId: Number(season.seasonId),
+		seasonName: season.seasonName,
+		shortLabel: season.shortName ?? deriveSeasonShortLabel(season.seasonName)
+	}));
 }
 
 export interface DriverCareerRace {
