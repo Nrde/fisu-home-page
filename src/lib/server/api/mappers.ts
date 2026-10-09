@@ -445,30 +445,19 @@ export interface RaceResultEntry extends WithDisplayPosition {
 
 export interface LatestRaceResult {
 	raceId: number;
-	/**
-	 * MUUTOS 9.10.2026 (API-tiimin muotouudistus): `/results/race/{roundId}`
-	 * EI ANNA ENÄÄ trackName-merkkijonoa — `mapLatestRaceResult` ottaa tämän
-	 * nyt PARAMETRINA kutsujalta (ks. sen kommentti), resolvoituna ERI,
-	 * ennallaan pysyneestä endpointista (`/races/{season}`-listan `track`-
-	 * kenttä, löydetty `raceId`:llä).
-	 */
+	/** Luetaan suoraan `response.data.trackName`:sta — palasi API:iin 10.10.2026, ks. types.ts:n `RawRaceResultResponse`-kommentti. */
 	trackName: string;
 	/**
 	 * Viittaa `/tracks`-endpointin `trackid`:hen (ks. Track.id) — `undefined`
-	 * jos rataa ei tunnistettu. `undefined` MYÖS KUTSUJAN VASTUULLA jos
-	 * kutsuja ei välitä sitä — `mapLatestRaceResult` ITSE ei enää aseta
-	 * tätä mihinkään (ks. sen kommentti): API:n OMA `trackId` tässä
-	 * vastauksessa on NYT eri id-avaruudessa kuin `/tracks`:n `trackid`
-	 * (löydetty 9.10.2026, ks. types.ts:n `RawRaceResultResponse`-kommentti)
-	 * eikä sitä siis voi käyttää suoraan linkitykseen — kutsujan on
-	 * resolvoitava tämä NIMEN perusteella (`findTrackIdByName`) jos linkki
-	 * `/radat/{trackId}`:hen halutaan.
+	 * jos rataa ei tunnistettu (API antaa tällöin `null`). Luetaan suoraan
+	 * `response.data.trackId`:stä — oli 9.–10.10.2026 välillä vahingossa eri
+	 * id-avaruudessa (API-tiimin arkkitehtuuriregressio), palasi slugiksi
+	 * 10.10.2026, ks. types.ts:n kommentti.
 	 */
 	trackId?: string;
 	/**
-	 * Kauden nimi jolle tämä kisa kuuluu. MUUTOS 9.10.2026: API EI ANNA
-	 * tätä enää (`response.data.seasonname` katosi samassa muotouudistuksessa
-	 * kuin trackName) — kutsuja välittää tämän PARAMETRINA, resolvoituna
+	 * Kauden nimi jolle tämä kisa kuuluu. API EI anna tätä `/results/race/
+	 * {roundId}`:ssa — kutsuja välittää tämän PARAMETRINA, resolvoituna
 	 * `/results/organiser/{organiser}/summary`:sta (`mapCurrentSeason`,
 	 * jota meillä oli jo valmiiksi kutsuttavana muista syistä).
 	 */
@@ -558,10 +547,11 @@ function formatSecondsAsClock(totalSeconds: number): string {
  *
  * `split`/`splitLabel` tulevat OMISTAVALTA `RawRaceSession`:lta kutsujan
  * (`mapLatestRaceResult`) kautta — sessio on tämän tiedon AUKTORITATIIVINEN
- * lähde. `fastestLapMs` on ETUKÄTEEN laskettu KOKO kisan (kaikkien
- * sessioiden yli) pienin `bestLapMs`, ks. `mapLatestRaceResult` — API ei
- * enää anna `fastestLap`-totuusarvoa valmiina (ks. RaceResultEntry.
- * fastestLap-kommentti), se pitää siis päätellä taas itse.
+ * lähde. `fastestLap` luettiin VÄLIAIKAISESTI (9.–10.10.2026) itse laskemalla
+ * kaikkien `bestLapMs`-arvojen pienin, koska kenttä puuttui uudesta
+ * `results[]`-kyselystä vahingossa (API-tiimin oma vahvistus 10.10.2026,
+ * unohtui siirtää laskenta uuteen skeemaan) — PALAUTETTU suoraan `raw.
+ * fastestLap`:n lukemiseksi nyt kun API korjasi sen, ei enää lasketa itse.
  *
  * BUGIKORJAUS (7.10.2026, API-tiimin raportti "Fixing the race results
  * page" -seurantaviesti, pätee edelleen UUDESSA muodossa): `position: ""`
@@ -575,8 +565,7 @@ function formatSecondsAsClock(totalSeconds: number): string {
 function normalizeSessionResult(
 	raw: RawRaceSessionResult,
 	split: number | null,
-	splitLabel: string | null,
-	fastestLapMs: number | undefined
+	splitLabel: string | null
 ): Omit<RaceResultEntry, 'displayPosition'> | undefined {
 	if (raw.position === '' || raw.position === null || raw.position === undefined) return undefined;
 
@@ -585,7 +574,6 @@ function normalizeSessionResult(
 	if (!Number.isFinite(position) || !name) return undefined;
 
 	const driverId = Number(raw.driverId);
-	const bestLapMs = parseFiniteNumberOrUndefined(raw.bestLapMs);
 
 	return {
 		driverId,
@@ -594,20 +582,13 @@ function normalizeSessionResult(
 		// Voittajalle (position 1) ei näytetä eroa, ks. RaceResultEntry.gapDisplay-kommentti.
 		gapDisplay: position === 1 ? undefined : formatGapDisplayMs(raw.gapMs),
 		bestLapTime: formatLapTimeMs(raw.bestLapMs),
-		fastestLap: bestLapMs !== undefined && fastestLapMs !== undefined && bestLapMs === fastestLapMs,
+		fastestLap: raw.fastestLap,
 		positionChange: normalizePositionChange(raw),
 		// API:n valmis totuusarvo 9.10.2026 alkaen — EI enää päätellä `points === 0`:sta.
 		dnf: raw.dnf,
 		split,
 		splitLabel
 	};
-}
-
-/** Apufunktio — `Number(raw)` mutta `""`/`null`/`undefined` -> `undefined` (EI `0`), sama suojaus kuin muuallakin tässä tiedostossa. */
-function parseFiniteNumberOrUndefined(raw: string | number | null | undefined): number | undefined {
-	if (raw === '' || raw === null || raw === undefined) return undefined;
-	const n = Number(raw);
-	return Number.isFinite(n) ? n : undefined;
 }
 
 /**
@@ -664,66 +645,45 @@ export function pickLatestFinishedRaceId(finishedRaceIds: number[]): number | un
 }
 
 /**
- * TÄYSIN UUDELLEEN KIRJOITETTU 9.10.2026, API-tiimin "Breaking change"
- * -ilmoituksen mukaisesti (ks. types.ts:n `RawRaceResultResponse`-kommentti
- * täydestä taustasta). Litistää `response.data.races[].results[]`:n YHDEKSI
- * listaksi — korvaa 6.10.2026:n `subRaces`/`drivers`-kaksoisfallbackin
- * KOKONAAN, koska MOLEMMAT niistä kentistä ovat POISTUNEET vastauksesta.
- * SAMA kuljettaja voi edelleen esiintyä tässä litistetyssä listassa
- * USEAMPAAN KERTAAN (kerran per sessio jossa hän ajoi) — kutsujien
- * (sivujen `{#each}`-avaimet) on käytettävä `driverId`+`split`-YHDISTELMÄÄ
- * avaimena, EI pelkkää `driverId`:tä.
+ * UUDELLEEN KIRJOITETTU 9.10.2026 (API-tiimin "Breaking change"
+ * -ilmoitus), YKSINKERTAISTETTU 10.10.2026 kun API-tiimi korjasi omat
+ * regressionsa (ks. types.ts:n `RawRaceResultResponse`-kommentti täydestä
+ * taustasta/historiasta). Litistää `response.data.races[].results[]`:n
+ * YHDEKSI listaksi — SAMA kuljettaja voi esiintyä tässä litistetyssä
+ * listassa USEAMPAAN KERTAAN (kerran per sessio jossa hän ajoi), kutsujien
+ * (sivujen `{#each}`-avaimet) on siis käytettävä `driverId`+`split`-
+ * YHDISTELMÄÄ avaimena, EI pelkkää `driverId`:tä.
  *
- * `context`-parametri on UUSI 9.10.2026: `trackName`/`seasonName` EIVÄT
- * enää tule TÄSTÄ vastauksesta (API:n muotouudistus poisti ne), joten
- * kutsuja resolvoi ne ERI, muuttumattomista endpointeista ja välittää
- * tähän valmiina. `trackId` EI ole osa `context`:ia — kutsuja asettaa sen
- * (jos tarpeen) ERIKSEEN paluuarvoon `findTrackIdByName`:lla, koska se
- * vaatii oman `/tracks`-hakunsa jota kaikki kutsujat eivät tarvitse
- * (esim. etusivu ei näytä "radan sivulle"-linkkiä).
+ * `trackName` luetaan NYT suoraan `response.data.trackName`:sta (palasi
+ * API:iin 10.10.2026) — `context`-parametrissa on enää VAIN `seasonName`,
+ * jota API EI anna tässä vastauksessa (kutsuja resolvoi sen `/results/
+ * organiser/{org}/summary`:sta, joka sillä on joka tapauksessa haettavana).
+ * `trackId` luetaan suoraan `response.data.trackId`:stä (taas `/tracks`:n
+ * slug, ks. types.ts:n kommentti) — `findTrackIdByName`-nimikiertotie
+ * POISTETTU tarpeettomana.
  */
 export function mapLatestRaceResult(
 	raceId: number,
 	response: RawRaceResultResponse,
-	context: { trackName: string; seasonName: string }
+	context: { seasonName: string }
 ): LatestRaceResult {
-	const allRawResults = response.data.races.flatMap((session) => session.results);
-	const fastestLapMs = allRawResults.reduce<number | undefined>((fastest, raw) => {
-		const ms = parseFiniteNumberOrUndefined(raw.bestLapMs);
-		if (ms === undefined) return fastest;
-		return fastest === undefined || ms < fastest ? ms : fastest;
-	}, undefined);
-
 	const results = response.data.races
 		.flatMap((session) => {
 			const split = session.splitNumber ?? null;
 			const label = session.label?.trim() ? session.label.trim() : split !== null ? `Split ${split}` : null;
-			return session.results.map((raw) => normalizeSessionResult(raw, split, label, fastestLapMs));
+			return session.results.map((raw) => normalizeSessionResult(raw, split, label));
 		})
 		.filter((entry): entry is Omit<RaceResultEntry, 'displayPosition'> => entry !== undefined)
 		.sort(compareBySplitThenPosition);
 
 	return {
 		raceId,
-		trackName: context.trackName,
+		trackName: response.data.trackName ?? 'Tuntematon rata',
+		trackId: response.data.trackId ?? undefined,
 		seasonName: context.seasonName,
 		results: computeDisplayPositions(results),
 		raceTime: response.data.raceTime ?? undefined
 	};
-}
-
-/**
- * UUSI 9.10.2026 — korvaa aiemman `trackId`-suoran-vertailun (ks. types.ts:n
- * `RawRaceResultResponse`-kommentti SIITÄ MIKSI: API:n uusi `trackId` on eri
- * id-avaruudessa kuin `/tracks`:n `trackid`, 22.9.2026 käyttöön otettu tarkka
- * id-täsmäytys ei siis enää toimi). Täsmäytys on PALAUTETTU nimeen
- * perustuvaksi — sama kiertotie jota käytettiin ENNEN 22.9.2026. `undefined`
- * jos nimi ei täsmää mihinkään `/tracks`-listan rataan (ei arvata).
- */
-export function findTrackIdByName(tracks: Track[], trackName: string | undefined): string | undefined {
-	if (!trackName) return undefined;
-	const needle = trackName.trim().toLowerCase();
-	return tracks.find((t) => t.name.trim().toLowerCase() === needle)?.id;
 }
 
 export interface Track {
@@ -810,19 +770,15 @@ export interface TrackRaceHistoryEntry {
 }
 
 /**
- * Etsii FISU:n kisahistorian tietylle radalle NIMEEN perustuvalla
- * täsmäytyksellä. HISTORIA: 22.9.2026–9.10.2026 käytössä oli TARKKA
- * `trackId`-vertailu (`/races/{season}`:n `trackId` viittasi suoraan
- * `/tracks`-endpointin `trackid`:hen). PALAUTETTU NIMEEN perustuvaksi
- * 9.10.2026, API-tiimin id-migraation SIVUVAIKUTUKSENA (EI heidän oma
- * ilmoituksensa — löydetty tätä korjausta tehdessä): `trackId` on NYT eri,
- * pieni-kokonaisluku-id-avaruudessa KAIKKIALLA MUUALLA API:ssa, MUTTA
- * `/tracks` ei ole osa tätä migraatiota — sen `trackid` on edelleen vanha
- * slug ("thruxton" jne.). Nämä kaksi id-avaruutta EIVÄT enää täsmää
- * mihinkään, vaikka molemmat ovat edelleen olemassa (ks. types.ts:n
- * `RawRaceResultResponse`-kommentti). NIMET sen sijaan täsmäävät edelleen
- * 1:1 (tarkistettu käsin usealle radalle) — tämä on siis SAMA kiertotie
- * jota käytettiin ENNEN 22.9.2026, nyt palautettuna.
+ * Etsii FISU:n kisahistorian tietylle radalle TARKALLA `trackId`-
+ * vertailulla. HISTORIA (sotkuinen, tiivistetty): 22.9.2026 otettiin
+ * käyttöön tarkka id-täsmäytys (korvasi ALKUPERÄISEN nimeen perustuvan
+ * kiertotien). 9.10.2026 id-täsmäytys piti PALAUTTAA nimeen, koska API-
+ * tiimin id-migraatio vaihtoi `trackId`:n vahingossa eri, `/tracks`:iin
+ * täsmäämättömään numeroavaruuteen (oma arkkitehtuuriregressio, ei
+ * tarkoituksellinen osa migraatiota). KORJATTU TAKAISIN 10.10.2026, kun
+ * API-tiimi vahvisti ja palautti `trackId`:n `/tracks`:n slugiksi — tarkka
+ * id-täsmäytys on siis TAAS oikea ratkaisu, ei nimeen perustuva kiertotie.
  *
  * `allSeasonsRaces` kootaan kutsujan puolella (ks. radat/[trackid]/
  * +page.server.ts) hakemalla JOKAISEN kauden kisalista erikseen — tämä
@@ -830,14 +786,13 @@ export interface TrackRaceHistoryEntry {
  * yksittäisen radan tarkennussivulla, ei koskaan radat-indeksisivulla.
  */
 export function matchTrackRaceHistory(
-	trackName: string,
+	trackId: string,
 	allSeasonsRaces: { seasonId: number; seasonName: string; races: RawRaceListEntry[] }[]
 ): TrackRaceHistoryEntry[] {
-	const needle = trackName.trim().toLowerCase();
 	const matches: TrackRaceHistoryEntry[] = [];
 	for (const { seasonId, seasonName, races } of allSeasonsRaces) {
 		for (const race of races) {
-			if (race.track.trim().toLowerCase() === needle) {
+			if (race.trackId === trackId) {
 				matches.push({
 					seasonId,
 					seasonName,

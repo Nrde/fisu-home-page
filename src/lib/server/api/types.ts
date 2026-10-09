@@ -268,56 +268,47 @@ export interface RawSeasonRacesResponse {
 export type RawFinishedRaceIdsResponse = number[];
 
 /**
- * GET /results/race/{roundId} — TÄYSIN UUDELLEEN KIRJOITETTU 9.10.2026,
- * API-tiimin "Breaking change" -ilmoituksen mukaisesti (jo tuotannossa,
- * ei erillistä siirtymäaikaa koska UI on betassa). KAKSI itsenäistä
- * muutosta samassa ilmoituksessa:
+ * GET /results/race/{roundId} — UUDELLEEN KIRJOITETTU 9.10.2026 (API-tiimin
+ * "Breaking change" -ilmoitus), KORJATTU 10.10.2026 (API-tiimi vahvisti ja
+ * korjasi kolme regressiota omasta päästään samana päivänä raportoituamme
+ * ne, ks. korjauslokia CLAUDE.md:ssä). Lopullinen, VAHVISTETTU tila:
  *
- * 1) ID-AVARUUS: kaikki kausi/kisa/kuljettaja-id:t ovat NYT API:n omia
- *    pieniä juoksevia kokonaislukuja, EIVÄT ENÄÄ simracing.fi:n vanhoja
- *    numeroita — ei mitään kartoitustaulua niiden välillä. Meidän
- *    koodimme ei ole koskaan kovakoodannut mitään id:tä (aina luettu
- *    reitin parametrista tai API-vastauksesta), niin tämä osa ei vaadi
- *    meiltä mitään korjausta — paitsi `trackId`, ks. alla ❗.
+ * 1) ID-AVARUUS: kausi/kisa/kuljettaja-id:t ovat API:n omia pieniä
+ *    juoksevia kokonaislukuja (ei kartoitusta vanhoihin simracing.fi-
+ *    numeroihin), ja tulevat NYT AITOINA JSON-numeroina (10.10.2026
+ *    korjattu — tietokantakerros palautti ne aiemmin merkkijonoina
+ *    cast-virheen takia). Koodin `Number(...)`-varmistukset pidetty
+ *    siltikin (halvat no-op:it kun arvo on jo numero) — turvaverkkona,
+ *    ei koska niitä enää TARVITTAISIIN.
  *
- * 2) MUOTO: tämä NIMENOMAINEN endpoint ((`/results/race/{roundId}`)
- *    korvasi KOKONAAN vanhan `{racename, seasonname, drivers, subRaces}`
- *    -muodon UUDELLA `{roundId, seasonId, name, trackId, races[]}`
- *    -muodolla — vanhat kentät EIVÄT enää ole vastauksessa LAINKAAN (ei
- *    rinnakkain, ei fallbackina) — havaittu TUOTANNOSSA kaatumisena
- *    ennen kuin tämä korjaus tehtiin (`subRaces`-fallback 6.10.2026 ei
- *    osannut varautua SIIHEN että `drivers`-FALLBACKKIN kenttä puuttuisi
- *    samanaikaisesti). `racename`/`seasonname` HÄVISIVÄT KOKONAAN eikä
- *    tilalle tullut mitään korvaavaa merkkijonokenttää — `mapLatestRace
- *    Result` ottaa nyt trackName/seasonName PARAMETRINA kutsujalta
- *    (ks. sen kommentti), joka resolvoi ne ERI, muuttumattomista
- *    endpointeista (`/races/{season}`, `/results/organiser/{org}/summary`)
- *    joita meillä oli jo valmiiksi kutsuttavana muista syistä.
+ * 2) MUOTO: vanha `{racename, seasonname, drivers, subRaces}` korvautui
+ *    `{roundId, seasonId, name, trackId, trackName, races[]}`-muodolla.
+ *    `trackName` PALASI 10.10.2026 (API-tiimin oma korjaus — `RoundRepository
+ *    ::findWithRaces()` ei alun perin liittänyt sitä mukaan, vaikka toinen
+ *    metodi teki saman JOINin jo valmiiksi). `seasonName` EI edelleenkään
+ *    ole mukana — `mapLatestRaceResult` ottaa sen PARAMETRINA kutsujalta,
+ *    joka resolvoi sen `/results/organiser/{org}/summary`:sta (muuten
+ *    tarvitaan sivulla joka tapauksessa).
  *
- * ❗ HUOM (löydetty TÄMÄN korjauksen yhteydessä, EI API-tiimin oma
- * ilmoitus): `trackId` TÄSSÄ JA `/races/{season}`:n `trackId`:ssä on
- * NYT SAMA uusi pieni kokonaisluku-id-avaruus (esim. "65") — se EI
- * ENÄÄ täsmää `/tracks`-endpointin `trackid`-kenttään (joka on
- * edelleen vanha slug, esim. "thruxton"). `/tracks` ei siis ole
- * (ainakaan toistaiseksi) osa samaa id-migraatiota kuin muu API.
- * Tarkistettu käsin 9.10.2026 usealle radalle: NIMET täsmäävät
- * edelleen 1:1 (`trackName`/`track` vs. `/tracks`:n `trackname`),
- * vain id EI täsmää. Linkitys `/tracks`:iin on siis TOISTAISEKSI
- * palautettu NIMEEN perustuvaksi (ks. mappers.ts:n `findTrackBy
- * Name`) — sama kiertotie jota käytettiin ENNEN 22.9.2026, jolloin
- * `trackId`-täsmäytys otettiin käyttöön ensimmäistä kertaa. Raportoitu
- * takaisin API-tiimille erillisenä löydöksenä, EI korjattavissa
- * meidän päästämme ilman kartoitustaulua.
+ * 3) `trackId` ON TAKAISIN `/tracks`-endpointin `trackid`-slugina (esim.
+ *    "roadatlanta_short") — 9.–10.10.2026 välillä se oli vahingossa
+ *    vaihtunut uuteen numeeriseen id-avaruuteen (API-tiimin oma,
+ *    tahaton arkkitehtuuriregressio, EI tarkoituksellinen osa id-
+ *    migraatiota — vahvistettu 10.10.2026). Nimeen perustuva kiertotie
+ *    (`findTrackIdByName`) POISTETTU, suora id-täsmäytys (`trackId ===
+ *    track.id`) KÄYTÖSSÄ TAAS — ks. mappers.ts:n `matchTrackRaceHistory`.
  */
 export interface RawRaceResultResponse {
 	success: boolean;
 	data: {
 		roundId: string | number;
 		seasonId: string | number;
-		/** Kisan OMA nimi (esim. "Thruxton 1990") — EI radan nimi, ks. `races[].trackName` sen sijaan (tulee `/races/{season}`-listalta, ei tästä vastauksesta, ks. yllä oleva iso kommentti). */
+		/** Kisan OMA nimi (esim. "Thruxton 1990") — EI radan nimi, ks. `trackName`. */
 		name: string;
-		/** UUSI id-avaruus — EI täsmää `/tracks`:n `trackid`:hen, ks. yllä. */
-		trackId: string | number | null;
+		/** Takaisin `/tracks`:n `trackid`-slugina, ks. yllä oleva kommentti (3). */
+		trackId: string | null;
+		/** PALASI 10.10.2026, ks. yllä oleva kommentti (2). */
+		trackName?: string;
 		scheduledAt?: string;
 		extId?: string | number;
 		/** Linkki vanhaan simracing.fi-tulossivuun — EI käytetä UI:ssa (oma `/kaudet/.../kilpailut/...`-sivumme on korvannut sen), dokumentoitu koska API palauttaa sen. */
@@ -385,6 +376,14 @@ export interface RawRaceSessionResult {
 	dnf: boolean;
 	/** Vapaa teksti (esim. DNF:n syy) — `null` kaikissa nähdyissä esimerkeissä, ei käytetä UI:ssa toistaiseksi. */
 	note: string | null;
+	/**
+	 * PALASI TAKAISIN API-TIIMIN KORJAUKSELLA (10.10.2026) — puuttui
+	 * ALUKSI uudesta `results[]`-muodosta (unohtui siirtää uuteen
+	 * kyselyyn, API-tiimin oma vahvistus), mappers.ts laski sen VÄLIAIKAISESTI
+	 * itse (`bestLapMs`-arvojen pienimmän vertailu, ks. git-historia) 9.–
+	 * 10.10.2026 välillä. Käytetään nyt TÄTÄ suoraan, EI enää itse laskettua.
+	 */
+	fastestLap: boolean;
 }
 
 /**
@@ -609,13 +608,22 @@ export interface RawRaceCarsData {
 	carDetails: Record<string, RawCar>;
 	assignments: RawRaceCarAssignment[];
 	raceWideCarId: number | string | null;
+	/** Ks. `RawRaceCarsResponse.carsSchemaVersion`-kommentti — nähty TÄÄLLÄ (datan sisällä) live-vastauksessa 10.10.2026. */
+	carsSchemaVersion?: number;
 }
 
 export interface RawRaceCarsResponse {
 	success: boolean;
 	data: RawRaceCarsData | null;
-	/** UUSI (ei vielä tuotannossa 26.9.2026) — sama mekanismi kuin `RawSeasonRacesResponse.carsSchemaVersion`, ks. sen kommentti. */
-	carsSchemaVersion: number;
+	/**
+	 * HUOM (löydetty 10.10.2026): tämä kenttä on nähty TÄÄLLÄ (`data`:n
+	 * sisarkenttänä) alun perin, MUTTA live-vastauksessa se oli `data`:n
+	 * SISÄLLÄ (`data.carsSchemaVersion`) — ei vielä selvää kumpi on
+	 * API:n tarkoittama paikka, tai vaihteleeko se. `client.ts`:n
+	 * `fetchRaceCars` tarkistaa MOLEMMAT paikat varmuuden vuoksi.
+	 * Valinnainen koska ei ole varmaa onko se aina läsnä juuri tässä.
+	 */
+	carsSchemaVersion?: number;
 }
 
 /**

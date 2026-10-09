@@ -327,7 +327,14 @@ export function fetchCarDictionary(fetchFn: typeof fetch) {
  */
 export async function fetchRaceCars(fetchFn: typeof fetch, seasonId: number, raceId: number) {
 	const response = await apiFetch<RawRaceCarsResponse>(fetchFn, `/cars/race/${seasonId}/${raceId}`);
-	warnIfUnknownCarsSchemaVersion(response.carsSchemaVersion, `/cars/race/${seasonId}/${raceId}`);
+	// `?? response.data?.carsSchemaVersion`: löydetty 10.10.2026 — kenttä on
+	// nähty TÄSSÄ live-vastauksessa `data`:n SISÄLLÄ, ei sen sisarkenttänä
+	// kuten muissa `carsSchemaVersion`-vastauksissa, ks. types.ts:n
+	// `RawRaceCarsResponse`-kommentti.
+	const version = response.carsSchemaVersion ?? response.data?.carsSchemaVersion;
+	if (version !== undefined) {
+		warnIfUnknownCarsSchemaVersion(version, `/cars/race/${seasonId}/${raceId}`);
+	}
 	return response;
 }
 

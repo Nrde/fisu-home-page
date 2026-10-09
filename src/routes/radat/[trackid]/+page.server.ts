@@ -8,18 +8,17 @@
  * 2) FISU:n oma kisahistoria tällä radalla — RASKAS N+1-ratkaisu: haetaan
  *    ORGANISAATION KAIKKI kaudet (`organiserSummary`, 1 kutsu) ja sen
  *    jälkeen JOKAISEN kauden kisalista erikseen (`/races/{season}`, N
- *    kutsua — yksi per kausi), ja täsmäytetään radan NIMI kisalistan
- *    `track`-nimikenttään (ks. mappers.ts:n `matchTrackRaceHistory`).
- *    HISTORIA: 22.9.2026–9.10.2026 täsmäytys oli TARKKA `trackId`-vertailu
- *    (backend antoi `trackId`:n joka täsmäsi `/tracks`:n `trackid`:hen).
- *    PALAUTETTU NIMEEN 9.10.2026, API-tiimin id-migraation sivuvaikutuksena:
- *    `/races/{season}`:n `trackId` on nyt eri id-avaruudessa kuin `/tracks`:n
- *    `trackid`, eivätkä ne enää täsmää mitenkään (ks. types.ts:n
- *    `RawRaceResultResponse`-kommentti) — nimet täsmäävät edelleen.
- *    Itse N+1-hakukuvio (yksi kutsu per kausi) EI muuttunut, vain
- *    täsmäytystapa. Tehdään TARKOITUKSELLA vain tällä yksittäisen radan
- *    sivulla, ei radat-indeksissä, koska N+1 kutsua on liikaa listasivulle
- *    mutta hyväksyttävä yhdelle tarkennussivulle.
+ *    kutsua — yksi per kausi), ja täsmäytetään radan `trackId` kisalistan
+ *    `trackId`-kenttään TARKALLA id-vertailulla (ks. mappers.ts:n
+ *    `matchTrackRaceHistory`). HISTORIA: 9.–10.10.2026 välillä täsmäytys
+ *    oli väliaikaisesti NIMEEN perustuva, API-tiimin id-migraation
+ *    aiheuttaman `trackId`-regression takia (korjattu heidän päässään
+ *    10.10.2026, ks. types.ts:n `RawRaceResultResponse`-kommentti) — tarkka
+ *    id-vertailu on taas oikea tapa. Itse N+1-hakukuvio (yksi kutsu per
+ *    kausi) EI muuttunut, vain täsmäytystapa. Tehdään TARKOITUKSELLA vain
+ *    tällä yksittäisen radan sivulla, ei radat-indeksissä, koska N+1
+ *    kutsua on liikaa listasivulle mutta hyväksyttävä yhdelle
+ *    tarkennussivulle.
  */
 import { error } from '@sveltejs/kit';
 import {
@@ -80,9 +79,7 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 					};
 				})
 			);
-			// UUSI 9.10.2026: nimeen perustuva täsmäytys palautettiin käyttöön
-			// (`track.id` ei enää toimisi, ks. mappers.ts:n matchTrackRaceHistory-kommentti).
-			raceHistory = matchTrackRaceHistory(track.name, seasonRaceLists);
+			raceHistory = matchTrackRaceHistory(track.id, seasonRaceLists);
 		} catch (historyError) {
 			console.warn(
 				`[radat/[trackid]/+page.server.ts] Kisahistorian haku epäonnistui, näytetään silti ratatiedot.`,

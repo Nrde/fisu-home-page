@@ -79,18 +79,12 @@ export const load: PageServerLoad = async ({ fetch }) => {
 		// Aalto 3: viimeisimmän ajetun kisan tulokset, jos kaudella on
 		// ajettu yhtään kisaa (uuden kauden alussa ei välttämättä ole).
 		//
-		// UUSI 9.10.2026 (API-tiimin muotouudistus, ks. mappers.ts:n
-		// `mapLatestRaceResult`-kommentti): `/results/race/{roundId}` EI
-		// ANNA ENÄÄ trackName/seasonName-merkkijonoja — ne resolvoidaan
-		// tässä `races`-listalta (jo haettu Aalto 2:ssa upcomingRacea
-		// varten, ei uusi API-kutsu) ja `currentSeason.name`:sta (jo
-		// tiedossa Aalto 1:stä).
+		// `/results/race/{roundId}` antaa trackName/trackId suoraan (ks.
+		// mappers.ts:n `mapLatestRaceResult`-kommentti) — VAIN seasonName
+		// pitää välittää itse, `currentSeason.name` on jo tiedossa Aalto 1:stä.
 		const latestFinishedRaceId = pickLatestFinishedRaceId(finishedRaceIds);
-		// `Number(race.id)`: `race.id` tulee livenä merkkijonona (ks. mappers.ts:n `RawRaceListEntry.id`-kommentti).
-		const latestRaceListEntry = races.find((race) => Number(race.id) === latestFinishedRaceId);
 		const latestRaceResult = latestFinishedRaceId
 			? mapLatestRaceResult(latestFinishedRaceId, await fetchRaceResult(fetch, latestFinishedRaceId), {
-					trackName: latestRaceListEntry?.track ?? 'Tuntematon rata',
 					seasonName: currentSeason.name
 				})
 			: undefined;
