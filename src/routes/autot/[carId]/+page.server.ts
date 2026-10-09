@@ -58,11 +58,16 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 		try {
 			const summary = await fetchOrganiserSummary(fetch, ORGANISER);
 			const seasonPools = await Promise.all(
-				summary.map(async (season) => ({
-					seasonId: season.seasonId,
-					seasonName: season.seasonName,
-					pool: mapCars(await fetchSeasonCarPool(fetch, season.seasonId))
-				}))
+				// `Number(season.seasonId)`: tulee NYT livenä merkkijonona (ks.
+				// mappers.ts:n `RawSeasonSummary.seasonId`-kommentti).
+				summary.map(async (season) => {
+					const seasonId = Number(season.seasonId);
+					return {
+						seasonId,
+						seasonName: season.seasonName,
+						pool: mapCars(await fetchSeasonCarPool(fetch, seasonId))
+					};
+				})
 			);
 			const matches = matchCarSeasons(carId, seasonPools);
 

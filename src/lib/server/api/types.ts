@@ -24,7 +24,18 @@
 export type RawOrganiserSummaryResponse = RawSeasonSummary[];
 
 export interface RawSeasonSummary {
-	seasonId: number;
+	/**
+	 * BUGIKORJAUS (9.10.2026, API-tiimin id-migraation sivuvaikutus — ei
+	 * heidän oma ilmoituksensa): tämä tulee NYT livenä MERKKIJONONA
+	 * (esim. `"14"`), vaikka oli aiemmin aito JSON-numero — havaittu
+	 * `/kaudet/[seasonId]`-sivun 404-regressiona (`mapCurrentSeason`:n
+	 * `===`-vertailu epäonnistui hiljaisesti merkkijono vs. numero
+	 * -tyyppiristiriidan takia). Widenoitu tähän samaan `number | string`
+	 * -muotoon kuin `RawDriverStanding.id`:ssä on ollut jo aiemmin samasta
+	 * syystä — mapperi (`mapCurrentSeason`/`mapSeasonList`/
+	 * `pickDisplaySeasonId`) koersioi aina `Number(...)`:lla ennen vertailua.
+	 */
+	seasonId: number | string;
 	seasonName: string;
 	/**
 	 * VALINNAINEN, EI VIELÄ BACKENDISSÄ (22.9.2026) — käyttäjä tarjoutui
@@ -184,7 +195,8 @@ export interface RawCurrentSeasonResponse {
  * joten kyseessä on puhdas korvaus, ei migraatio.
  */
 export interface RawRaceListEntry {
-	id: number;
+	/** BUGIKORJAUS (9.10.2026, sama id-migraation sivuvaikutus kuin `RawSeasonSummary.seasonId`:ssä) — tulee NYT livenä merkkijonona, widenoitu samasta syystä. Mapperit koersioivat `Number(...)`:lla. */
+	id: number | string;
 	/** Alkuperäinen yhdistetty merkkijono ennen date/time-splittiä — emme käytä tätä, date+time riittävät. */
 	dateFull?: string;
 	/** Muoto "pp.k.vvvv" (EI nollatäytettä), esim. "7.1.2026". Vahvistettu 20.9.2026. */
@@ -256,66 +268,66 @@ export interface RawSeasonRacesResponse {
 export type RawFinishedRaceIdsResponse = number[];
 
 /**
- * GET /results/race/{id} — VAHVISTETTU 21.9.2026 oikeaa tuotantovastausta
- * vasten (käyttäjän liittämä esimerkkidata). Backend on nyt julkaissut
- * englanninkieliset kanoniset avaimet — vanhat suomenkieliset avaimet
- * (`sijoitus`/`nimi`/`ero`/`nop. kier.`/`lähtöruutu`/`muutos`/`pisteet`)
- * ja vanha pienaakkosinen `driverid` ovat TOISTAISEKSI vielä mukana
- * vastauksessa rinnakkain, mutta niitä EI enää lueta täältä — käyttäjän
- * ohje 21.9.2026: käytä vain uusia englanninkielisiä avaimia, älä
- * ylläpidä kahta avainsarjaa turhaan. `drivers` on AVAINPARI-OLIO
- * (object) keyta driverId:llä, EI TAULUKKO — täytyy lukea
- * `Object.entries(data.drivers)`, ei indeksoida kuin taulukkoa.
+ * GET /results/race/{roundId} — TÄYSIN UUDELLEEN KIRJOITETTU 9.10.2026,
+ * API-tiimin "Breaking change" -ilmoituksen mukaisesti (jo tuotannossa,
+ * ei erillistä siirtymäaikaa koska UI on betassa). KAKSI itsenäistä
+ * muutosta samassa ilmoituksessa:
  *
- * PÄIVITYS (22.9.2026, API-kenttäkartta): toisin kuin 21.9.2026 vielä
- * uskottiin, API antaa NYT `fastestLap: true/false` VALMIINA jokaiselle
- * kuljettajalle — EI enää tarvitse päätellä sitä `bestLapTime`-arvoja
- * vertaamalla (mappers.ts:n `mapLatestRaceResult` käyttää nyt suoraan
- * tätä kenttää). Myös vastauksen JUURESSA (ei per-kuljettaja) on nyt
- * `trackId: string | null` — sama arvoavaruus kuin `/tracks`-endpointin
- * `trackid`:ssä ja `/races/{season}`:n uudessa `trackId`-kentässä.
+ * 1) ID-AVARUUS: kaikki kausi/kisa/kuljettaja-id:t ovat NYT API:n omia
+ *    pieniä juoksevia kokonaislukuja, EIVÄT ENÄÄ simracing.fi:n vanhoja
+ *    numeroita — ei mitään kartoitustaulua niiden välillä. Meidän
+ *    koodimme ei ole koskaan kovakoodannut mitään id:tä (aina luettu
+ *    reitin parametrista tai API-vastauksesta), niin tämä osa ei vaadi
+ *    meiltä mitään korjausta — paitsi `trackId`, ks. alla ❗.
  *
- * KRIITTINEN PÄIVITYS (6.10.2026, API-tiimin bugiraportti "Fixing the race
- * results page for multi-start races"): `drivers` on AVAINPARI-OLIO
- * KULJETTAJAN id:llä, eli se EI KOSKAAN ole voinut sisältää kahta tulosta
- * samalta kuljettajalta. Osa kisoista (KOKO kausi 7, ja mikä tahansa tuleva
- * kisa jossa on useampi lähtö tai useampi splitti) tuottaa kuitenkin
- * TODELLISUUDESSA kaksi tai useamman ERILLISEN tuloksen per kuljettaja
- * (yksi per lähtö/splitti) — `drivers` näytti tällöin vain kuljettajan
- * ENSIMMÄISEN tuloksen, ja esim. "110 pistettä" -kaltaiset mahdottomat
- * lukemat tuotannossa (ks. `/kaudet/80/kilpailut/390`) johtuivat tästä.
- * UUSI `subRaces`-kenttä (alla) on nyt AINOA LUOTETTAVA lähde — se on AINA
- * mukana (myös tavallisella kisalla, jolloin se on yhden alkion taulukko)
- * ja sisältää TÄYDELLISEN, itsenäisen tulosjoukon per lähtö/splitti.
- * `mapLatestRaceResult` EI enää lue `drivers`-kenttää lainkaan — vain
- * `subRaces`:ia, litistettynä yhdeksi listaksi joka säilyttää per-rivin
- * `split`:in (ks. mappers.ts:n kommentti miksi `drivers`-kenttä on silti
- * tyypitetty tähän: API palauttaa sen edelleen rinnakkain, emme vain lue
- * sitä). `drivers`-kenttä on TAHALLAAN jätetty tyypitykseen dokumentoimaan
- * API:n oma vastausmuoto, vaikka sitä ei enää käytetä.
+ * 2) MUOTO: tämä NIMENOMAINEN endpoint ((`/results/race/{roundId}`)
+ *    korvasi KOKONAAN vanhan `{racename, seasonname, drivers, subRaces}`
+ *    -muodon UUDELLA `{roundId, seasonId, name, trackId, races[]}`
+ *    -muodolla — vanhat kentät EIVÄT enää ole vastauksessa LAINKAAN (ei
+ *    rinnakkain, ei fallbackina) — havaittu TUOTANNOSSA kaatumisena
+ *    ennen kuin tämä korjaus tehtiin (`subRaces`-fallback 6.10.2026 ei
+ *    osannut varautua SIIHEN että `drivers`-FALLBACKKIN kenttä puuttuisi
+ *    samanaikaisesti). `racename`/`seasonname` HÄVISIVÄT KOKONAAN eikä
+ *    tilalle tullut mitään korvaavaa merkkijonokenttää — `mapLatestRace
+ *    Result` ottaa nyt trackName/seasonName PARAMETRINA kutsujalta
+ *    (ks. sen kommentti), joka resolvoi ne ERI, muuttumattomista
+ *    endpointeista (`/races/{season}`, `/results/organiser/{org}/summary`)
+ *    joita meillä oli jo valmiiksi kutsuttavana muista syistä.
+ *
+ * ❗ HUOM (löydetty TÄMÄN korjauksen yhteydessä, EI API-tiimin oma
+ * ilmoitus): `trackId` TÄSSÄ JA `/races/{season}`:n `trackId`:ssä on
+ * NYT SAMA uusi pieni kokonaisluku-id-avaruus (esim. "65") — se EI
+ * ENÄÄ täsmää `/tracks`-endpointin `trackid`-kenttään (joka on
+ * edelleen vanha slug, esim. "thruxton"). `/tracks` ei siis ole
+ * (ainakaan toistaiseksi) osa samaa id-migraatiota kuin muu API.
+ * Tarkistettu käsin 9.10.2026 usealle radalle: NIMET täsmäävät
+ * edelleen 1:1 (`trackName`/`track` vs. `/tracks`:n `trackname`),
+ * vain id EI täsmää. Linkitys `/tracks`:iin on siis TOISTAISEKSI
+ * palautettu NIMEEN perustuvaksi (ks. mappers.ts:n `findTrackBy
+ * Name`) — sama kiertotie jota käytettiin ENNEN 22.9.2026, jolloin
+ * `trackId`-täsmäytys otettiin käyttöön ensimmäistä kertaa. Raportoitu
+ * takaisin API-tiimille erillisenä löydöksenä, EI korjattavissa
+ * meidän päästämme ilman kartoitustaulua.
  */
 export interface RawRaceResultResponse {
 	success: boolean;
 	data: {
-		racename: string;
-		seasonname: string;
-		trackId: string | null;
-		/** @deprecated EI enää ENSISIJAISESTI luettu (ks. yllä oleva kommentti) — käytä `subRaces`:ia. Toimii silti FALLBACKINA mappers.ts:ssä niin kauan kuin `subRaces` ei ole vielä kaikkien kisojen vastauksissa (ks. alla). */
-		drivers: Record<string, RawRaceResultDriver>;
+		roundId: string | number;
+		seasonId: string | number;
+		/** Kisan OMA nimi (esim. "Thruxton 1990") — EI radan nimi, ks. `races[].trackName` sen sijaan (tulee `/races/{season}`-listalta, ei tästä vastauksesta, ks. yllä oleva iso kommentti). */
+		name: string;
+		/** UUSI id-avaruus — EI täsmää `/tracks`:n `trackid`:hen, ks. yllä. */
+		trackId: string | number | null;
+		scheduledAt?: string;
+		extId?: string | number;
+		/** Linkki vanhaan simracing.fi-tulossivuun — EI käytetä UI:ssa (oma `/kaudet/.../kilpailut/...`-sivumme on korvannut sen), dokumentoitu koska API palauttaa sen. */
+		extLink?: string;
+		races: RawRaceSession[];
 		/**
-		 * VALINNAINEN (todettu käytännössä 6.10.2026, ks. mappers.ts:n
-		 * `mapLatestRaceResult`-kommentti): API-tiimin ohje sanoi tämän olevan
-		 * "aina mukana", mutta ainakin osa vastauksista (esim. kisa 882) ei
-		 * sitä vielä antanut. `undefined`/puuttuva EI siis ole varmasti bugi
-		 * tässä nimenomaisessa kisassa — mapperi pudottautuu tällöin `drivers`-
-		 * kenttään yhtenä ryhmänä.
-		 */
-		subRaces?: RawSubRace[];
-		/**
-		 * UUSI 26.9.2026, käyttäjän vahvistama — SAMA kenttä ja muoto kuin
-		 * `RawRaceListEntry.raceTime`/`raceTimeMs` (`/races/{season}`:ssa),
-		 * täällä vain `data`:n sisarkenttänä eikä per-kisa-taulukon rivillä.
-		 * Voittajan kokonaisaika, VALMIIKSI muotoiltuna ("45:41.097" tms.).
+		 * SAMA kenttä ja muoto kuin `RawRaceListEntry.raceTime`/`raceTimeMs`
+		 * (`/races/{season}`:ssa) — voittajan kokonaisaika, VALMIIKSI
+		 * muotoiltuna ("45:41.097" tms.). Säilyi muuttumattomana tässä
+		 * muotouudistuksessa.
 		 */
 		raceTime?: string;
 		raceTimeMs?: number;
@@ -323,28 +335,56 @@ export interface RawRaceResultResponse {
 }
 
 /**
- * UUSI 6.10.2026 — yksi ITSENÄINEN tulosjoukko (yksi lähtö/splitti) kisan
- * sisällä, ks. `RawRaceResultResponse`-kommentti. Tavallisella kisalla
- * (ei splittejä/useita lähtöjä) `subRaces` on YHDEN alkion taulukko.
+ * UUSI 9.10.2026 — yksi ITSENÄINEN tulosjoukko (yksi lähtö/splitti/sessio)
+ * kisan sisällä, korvaa 6.10.2026:n `RawSubRace`:n (ks. git-historia jos
+ * tarvitsee vertailla — kentät eivät ole yhteensopivia, `drivers`-
+ * avainpari-olio on vaihtunut `results`-TAULUKOKSI, `split`→`splitNumber`).
+ * Tavallisella kisalla `races` on YHDEN alkion taulukko.
  */
-export interface RawSubRace {
-	/**
-	 * SAMA arvoavaruus/merkitys kuin `RawRaceResultDriver.split`:ssä (joka
-	 * on myös edelleen läsnä per kuljettaja tässä samassa rakenteessa,
-	 * redundantisti) — `null` tavallisella kisalla, muuten kokonaisluku.
-	 * Kuvaa SEKÄ oikeita rinnakkaisia splittejä ETTÄ peräkkäisiä lähtöjä
-	 * (esim. kauden 7 kaksi-lähtöä-per-kisa -formaatti) samalla tavalla,
-	 * koska näyttösääntö on kummallekin identtinen.
-	 */
-	split: number | null;
-	/**
-	 * Ihmisluettava nimi (esim. "Lähtö 1") kun API antaa sellaisen,
-	 * MUUTEN `null` (vanhemmat/livenä raapitut splitit eivät aina saa
-	 * siistiä nimeä) — tällöin UI:n pitää näyttää "Split {split}" sen
-	 * sijaan että jätettäisiin otsikko kokonaan pois.
-	 */
+export interface RawRaceSession {
+	/** Tämän sessio/split-osan OMA id — ERI kuin ulommaisen vastauksen `roundId`. Ei käytetä UI:ssa toistaiseksi. */
+	raceId: string | number;
+	/** Esim. "race"/"qualifying" — ei käytetä UI:ssa toistaiseksi (tämä sivu näyttää vain kisatuloksia, ei aika-ajoja erillisenä). */
+	sessionType: string;
+	/** SAMA merkitys kuin vanhan `RawSubRace.split`:ssä — `null` tavallisella kisalla. */
+	splitNumber: number | null;
+	startNumber: number | null;
+	/** Ihmisluettava nimi (esim. "Lähtö 1", "Kisalähtö") — MUUTEN `null`, jolloin UI:n pitää näyttää "Split {splitNumber}" fallbackina. */
 	label: string | null;
-	drivers: Record<string, RawRaceResultDriver>;
+	/** UUSI: TAULUKKO, EI avainpari-olio — korjaa 6.10.2026:n `subRaces`-ratkaisun jäljellä olleen rakenteellisen riskin (olio-avain kuljettaja-id:llä olisi YHÄ voinut törmätä jos samalla kuljettajalla olisi kahdesti SAMA avain). */
+	results: RawRaceSessionResult[];
+}
+
+/**
+ * UUSI 9.10.2026, korvaa `RawRaceResultDriver`:n. Suurimmat erot: `dnf`
+ * on NYT valmis totuusarvo (EI PÄÄTELTÄVÄ `points === 0`:sta enää, ks.
+ * mappers.ts:n `normalizeDnf`:n POISTO), `bestLapMs`/`gapMs` ovat
+ * MILLISEKUNTEINA (EI enää valmiiksi muotoiltuja merkkijonoja — mappers.ts
+ * muotoilee ne itse `formatSecondsAsClock`:lla), ja `carId` on NYT SUORAAN
+ * tällä rivillä (aiemmin vaati erillisen `/cars/race/{season}/{race}`
+ * -haun ja usean tason ratkaisulogiikan, ks. `resolveDriverCar`). HUOM:
+ * kaikissa toistaiseksi nähdyissä esimerkeissä `carId` on `null` — vanha
+ * `car_assignments`-pohjainen ratkaisu (ks. `attachRaceCars`) on TOISEKSI
+ * jätetty käyttöön ensisijaisena lähteenä, tätä kenttää ei vielä hyödynnetä.
+ */
+export interface RawRaceSessionResult {
+	driverId: string | number;
+	name: string;
+	number: string | number | null;
+	/** Kokonaislukusijoitus merkkijonona — HUOM: nähty myös `""` (tyhjä) yhdellä ikivanhalla historiadatan DNF:llä (ks. mappers.ts:n `normalizeSessionResult`-kommentti 6.10.2026), ei pelkkä numero kirjoitettuna merkkijonoksi aina luotettavasti. */
+	position: string | number;
+	startingPosition: string | number | null;
+	points: string | number;
+	/** Kuljettajan oma paras kierrosaika MILLISEKUNTEINA, `null` jos ei tiedossa. */
+	bestLapMs: string | number | null;
+	/** Ero kärkeen MILLISEKUNTEINA. `null` voittajalle JA kaikille jotka ovat vähintään kierroksen jäljessä (ks. mappers.ts:n kommentti — API EI enää erota näitä kahta tapausta toisistaan, tieto "N kierrosta jäljessä" on KADONNUT tässä muotouudistuksessa). */
+	gapMs: string | number | null;
+	/** UUSI, EI vielä käytössä UI:ssa (ks. yllä oleva RawRaceSession-kommentti) — kaikissa nähdyissä esimerkeissä `null`. */
+	carId: string | number | null;
+	/** API:n valmis totuusarvo — EI enää päätelty `points === 0`:sta (vrt. vanha `RawRaceResultDriver`). */
+	dnf: boolean;
+	/** Vapaa teksti (esim. DNF:n syy) — `null` kaikissa nähdyissä esimerkeissä, ei käytetä UI:ssa toistaiseksi. */
+	note: string | null;
 }
 
 /**
@@ -401,34 +441,6 @@ export interface RawTrack {
 }
 
 export type RawTrackListResponse = RawTrack[];
-
-export interface RawRaceResultDriver {
-	driverId: number | string;
-	position: number | string;
-	name: string;
-	/** "0" voittajalle, muille sekunteja merkkijonona (esim. "20.857") tai "N lap"/"N laps". */
-	gap?: string;
-	/** Kuljettajan oma paras kierrosaika tässä kisassa, muoto "M:SS.sss" (esim. "1:27.480"). */
-	bestLapTime?: string;
-	startingPosition?: string | number | null;
-	positionChange?: string | number | null;
-	points?: number | string;
-	/** Ajoi KOKO KISAN nopeimman kierroksen — API:n antama valmis totuusarvo (22.9.2026 alkaen, ks. RawRaceResultResponse-kommentti), EI enää päätelty. */
-	fastestLap?: boolean;
-	/**
-	 * LISÄTTY 2026-09-27 — kertoo mihin taitotasosplittiin kuljettaja
-	 * kuului, jos kisa oli jaettu useampaan erikseen ajettuun splittiin
-	 * (simracing.fi:n omat tabit esim. "Split 1 Lähtö 2"). `null` normaalilla
-	 * kisalla (myös "sprintti + päälähtö" -formaatti EI ole splitti, saa
-	 * silti `null`:n). KUN `split` ei ole `null`: `position`/`points` ovat
-	 * JO valmiiksi TÄMÄN splitin sisäisiä — ÄLÄ vertaa niitä eri splittien
-	 * kuljettajien kesken yhtenä listana, splitin 1 P1 ja splitin 3 P1 ovat
-	 * ERI kisoja eri pisteasteikoilla. Kuljettaja esiintyy vain omassa
-	 * splitissään (ei duplikaatteja). API EI (vielä) anna valmiiksi
-	 * laskettua yhdistettyä sijoitusta koko kisalle splittien yli.
-	 */
-	split: number | null;
-}
 
 /**
  * GET /drivers/{organiser}/{driverId}/career — VAHVISTETTU 21.9.2026

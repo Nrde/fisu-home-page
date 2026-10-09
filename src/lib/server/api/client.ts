@@ -196,9 +196,26 @@ export async function fetchSeasonRacesWithCarDetails(fetchFn: typeof fetch, seas
 	return response;
 }
 
-/** Hakee kauden AJETTUJEN kisojen id:t (paljas taulukko, ei olioita). */
-export function fetchFinishedRaceIds(fetchFn: typeof fetch, seasonId: number) {
-	return apiFetchEnvelope<RawFinishedRaceIdsResponse>(fetchFn, `/finishedraces/${seasonId}`);
+/**
+ * Hakee kauden AJETTUJEN kisojen id:t (paljas taulukko, ei olioita).
+ *
+ * BUGIKORJAUS (9.10.2026, API-tiimin id-migraation sivuvaikutus — ei
+ * heidän oma ilmoituksensa, löydetty tätä korjausta tehdessä): tämä
+ * endpoint palauttaa id:t NYT MERKKIJONOINA (esim. `"341"`), vaikka
+ * `RawFinishedRaceIdsResponse`-tyyppi (ja koko API:n AIEMPI käytös)
+ * olettaa `number[]`:ää. `Number(...)`-muunnos TÄSSÄ, yhdessä paikassa,
+ * varmistaa että KAIKKI kutsujat (3 kpl: etusivu, kausisivu, auton
+ * tarkennussivu) saavat AIDOSTI numeroita — ne käyttävät tätä listaa
+ * `Set<number>.has(raceId)`-vertailuun `/races/{season}`:n `id`-kenttää
+ * vasten, joka on (toistaiseksi, ks. `mapSeasonRaceList`/`mapUpcomingRace`)
+ * MYÖS muunnettu numeroksi juuri tätä vertailua varten — jos tätä
+ * muunnosta ei tehtäisi JOMMASSAKUMMASSA päässä, vertailu epäonnistuisi
+ * hiljaisesti (merkkijono !== numero) ja KAIKKI kisat näyttäisivät
+ * virheellisesti "ei ajetuilta".
+ */
+export async function fetchFinishedRaceIds(fetchFn: typeof fetch, seasonId: number): Promise<number[]> {
+	const raw = await apiFetchEnvelope<RawFinishedRaceIdsResponse>(fetchFn, `/finishedraces/${seasonId}`);
+	return raw.map(Number);
 }
 
 /**

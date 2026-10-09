@@ -5,18 +5,21 @@
  *    `params.trackid`:tä vastaava (ei tiedossa olevaa "yhden radan"
  *    endpointia, ks. client.ts:n fetchTracks-kommentti).
  *
- * 2) FISU:n oma kisahistoria tällä radalla — RASKAS mutta nyt TARKKA
- *    ratkaisu: haetaan ORGANISAATION KAIKKI kaudet (`organiserSummary`,
- *    1 kutsu) ja sen jälkeen JOKAISEN kauden kisalista erikseen
- *    (`/races/{season}`, N kutsua — yksi per kausi), ja täsmäytetään
- *    radan `trackId` kisalistan `trackId`-kenttään (ks. mappers.ts:n
- *    `matchTrackRaceHistory`). PÄIVITYS (22.9.2026): aiempi (21.9.2026)
- *    NIMEEN perustuva sallittu täsmäytys on korvattu tarkalla id-
- *    vertailulla nyt kun backend antaa `trackId`:n — itse N+1-
- *    hakukuvio (yksi kutsu per kausi) EI muuttunut, vain täsmäytystapa.
- *    Tehdään TARKOITUKSELLA vain tällä yksittäisen radan sivulla, ei
- *    radat-indeksissä, koska N+1 kutsua on liikaa listasivulle mutta
- *    hyväksyttävä yhdelle tarkennussivulle.
+ * 2) FISU:n oma kisahistoria tällä radalla — RASKAS N+1-ratkaisu: haetaan
+ *    ORGANISAATION KAIKKI kaudet (`organiserSummary`, 1 kutsu) ja sen
+ *    jälkeen JOKAISEN kauden kisalista erikseen (`/races/{season}`, N
+ *    kutsua — yksi per kausi), ja täsmäytetään radan NIMI kisalistan
+ *    `track`-nimikenttään (ks. mappers.ts:n `matchTrackRaceHistory`).
+ *    HISTORIA: 22.9.2026–9.10.2026 täsmäytys oli TARKKA `trackId`-vertailu
+ *    (backend antoi `trackId`:n joka täsmäsi `/tracks`:n `trackid`:hen).
+ *    PALAUTETTU NIMEEN 9.10.2026, API-tiimin id-migraation sivuvaikutuksena:
+ *    `/races/{season}`:n `trackId` on nyt eri id-avaruudessa kuin `/tracks`:n
+ *    `trackid`, eivätkä ne enää täsmää mitenkään (ks. types.ts:n
+ *    `RawRaceResultResponse`-kommentti) — nimet täsmäävät edelleen.
+ *    Itse N+1-hakukuvio (yksi kutsu per kausi) EI muuttunut, vain
+ *    täsmäytystapa. Tehdään TARKOITUKSELLA vain tällä yksittäisen radan
+ *    sivulla, ei radat-indeksissä, koska N+1 kutsua on liikaa listasivulle
+ *    mutta hyväksyttävä yhdelle tarkennussivulle.
  */
 import { error } from '@sveltejs/kit';
 import {
@@ -66,13 +69,20 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 		try {
 			const summary = await fetchOrganiserSummary(fetch, ORGANISER);
 			const seasonRaceLists = await Promise.all(
-				summary.map(async (season) => ({
-					seasonId: season.seasonId,
-					seasonName: season.seasonName,
-					races: await fetchSeasonRaces(fetch, season.seasonId)
-				}))
+				// `Number(season.seasonId)`: tulee NYT livenä merkkijonona (ks.
+				// mappers.ts:n `RawSeasonSummary.seasonId`-kommentti).
+				summary.map(async (season) => {
+					const seasonId = Number(season.seasonId);
+					return {
+						seasonId,
+						seasonName: season.seasonName,
+						races: await fetchSeasonRaces(fetch, seasonId)
+					};
+				})
 			);
-			raceHistory = matchTrackRaceHistory(track.id, seasonRaceLists);
+			// UUSI 9.10.2026: nimeen perustuva täsmäytys palautettiin käyttöön
+			// (`track.id` ei enää toimisi, ks. mappers.ts:n matchTrackRaceHistory-kommentti).
+			raceHistory = matchTrackRaceHistory(track.name, seasonRaceLists);
 		} catch (historyError) {
 			console.warn(
 				`[radat/[trackid]/+page.server.ts] Kisahistorian haku epäonnistui, näytetään silti ratatiedot.`,

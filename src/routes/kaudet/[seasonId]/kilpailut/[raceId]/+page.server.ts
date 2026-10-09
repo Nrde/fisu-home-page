@@ -23,17 +23,32 @@
  * numero, molemmat autohaut ohitetaan hiljaisesti eikä kaadeta koko sivua
  * sen takia, koska autotieto on tällä sivulla lisätietoa, ei pääsisältöä.
  */
-import { ApiError, fetchRaceCars, fetchRaceResult, fetchSeasonCarPool } from '#lib/server/api/client.ts';
+import {
+	ApiError,
+	fetchOrganiserSummary,
+	fetchRaceCars,
+	fetchRaceResult,
+	fetchSeasonCarPool,
+	fetchSeasonRaces,
+	fetchTracks
+} from '#lib/server/api/client.ts';
 import {
 	attachRaceCars,
+	findTrackIdByName,
 	mapCars,
+	mapCurrentSeason,
 	mapLatestRaceResult,
 	mapRaceCars,
+	mapTracks,
 	raceCarsUnion,
 	type Car,
 	type RaceCarResolution
 } from '#lib/server/api/mappers.ts';
 import type { PageServerLoad } from './$types';
+
+// TODO (sama huomio kuin muualla): organisaation tunnus on kovakoodattu
+// koska sivusto näyttää vain FISUn dataa.
+const ORGANISER = 'fisu';
 
 const EMPTY_RACE_CAR_RESOLUTION: RaceCarResolution = { byDriverId: new Map() };
 
@@ -47,15 +62,44 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 		const seasonId = Number(params.seasonId);
 		const hasSeasonId = Number.isFinite(seasonId);
 
-		const [rawResult, seasonPool, raceCarResolution] = await Promise.all([
+		/**
+		 * UUSI 9.10.2026 (API-tiimin muotouudistus — ks. mappers.ts:n
+		 * `mapLatestRaceResult`-kommentti täydestä taustasta): `/results/
+		 * race/{roundId}` EI ANNA ENÄÄ trackName/seasonName-merkkijonoja,
+		 * joten ne pitää resolvoida ERIKSEEN: `seasonRaces` (`/races/
+		 * {season}`, sisältää `track`-nimen per kisa) + `organiserSummary`
+		 * (sisältää `seasonName`:n per kausi, ks. `mapCurrentSeason`).
+		 * `tracks` (`/tracks`, KOKO ratatietokanta) haetaan MYÖS tätä
+		 * sivua varten UUTENA — tarvitaan "Radan sivulle →" -linkin
+		 * trackId:n NIMEEN perustuvaan täsmäytykseen (`findTrackIdByName`),
+		 * koska API:n OMA `trackId` tässä/`/races/{season}`:ssa on NYT eri
+		 * id-avaruudessa kuin `/tracks`:n `trackid` (ks. types.ts:n
+		 * `RawRaceResultResponse`-kommentti) — ei siis voi käyttää suoraan.
+		 */
+		const [rawResult, seasonRaces, organiserSummary, tracks, seasonPool, raceCarResolution] = await Promise.all([
 			fetchRaceResult(fetch, raceId),
+			hasSeasonId ? fetchSeasonRaces(fetch, seasonId) : Promise.resolve([]),
+			fetchOrganiserSummary(fetch, ORGANISER),
+			fetchTracks(fetch).then(mapTracks),
 			hasSeasonId ? fetchSeasonCarPool(fetch, seasonId).then(mapCars) : Promise.resolve<Car[]>([]),
 			hasSeasonId
 				? fetchRaceCars(fetch, seasonId, raceId).then(mapRaceCars)
 				: Promise.resolve(EMPTY_RACE_CAR_RESOLUTION)
 		]);
 
-		const result = attachRaceCars(mapLatestRaceResult(raceId, rawResult), raceCarResolution, seasonPool);
+		// `Number(race.id)`: `race.id` tulee livenä merkkijonona (ks. mappers.ts:n `RawRaceListEntry.id`-kommentti).
+		const raceListEntry = seasonRaces.find((race) => Number(race.id) === raceId);
+		const trackName = raceListEntry?.track ?? 'Tuntematon rata';
+		const seasonName = (hasSeasonId ? mapCurrentSeason(organiserSummary, seasonId)?.name : undefined) ?? params.seasonId;
+
+		const result = attachRaceCars(
+			{
+				...mapLatestRaceResult(raceId, rawResult, { trackName, seasonName }),
+				trackId: findTrackIdByName(tracks, trackName)
+			},
+			raceCarResolution,
+			seasonPool
+		);
 		const raceCars = raceCarsUnion(raceCarResolution);
 
 		return { result, seasonId: params.seasonId, cars: raceCars.length > 0 ? raceCars : seasonPool };
