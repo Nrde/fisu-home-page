@@ -9,10 +9,19 @@
  * the seasons and races they have been part of") on RASKAS "parasta
  * yritystä" -lisätieto, samalla periaatteella kuin radan tarkennussivun
  * kisahistoria: haetaan organisaation KAIKKI kaudet, sitten JOKAISEN
- * kauden autopooli erikseen (N+1), ja vain niille kausille joilla tämä
- * auto oli AINOA (ks. mappers.ts:n `matchCarSeasons`-kommentti) vielä
- * kauden koko kisalista. Epäonnistuminen TÄSSÄ ei kaada koko sivua —
- * itse auton perustiedot näytetään silti.
+ * kauden autopooli erikseen (N+1), ja kaikille kausille joilla tämä auto
+ * esiintyy poolissa vielä kauden koko kisalista (`/races/{season}`).
+ * Kausille joilla tämä auto oli AINOA poolissa (`exclusive`, ks.
+ * mappers.ts:n `matchCarSeasons`-kommentti) näytetään KOKO lista — muilla
+ * suodatetaan vain kisat joiden omassa `carIds`-kentässä tämä auto
+ * nimenomaisesti mainitaan (KORJAUS 10.10.2026, käyttäjän raportti:
+ * esim. /autot/20 näytti "ei tiedossa mitkä kilpailut" -viestin vaikka
+ * kisakohtainen tieto oli JO `/races/{season}`-vastauksessa valmiina —
+ * aiempi oletus tässä kommentissa, että tarkka ratkaisu vaatisi erillisen
+ * `/cars/race/{season}/{race}`-kutsun PER kisa, oli virheellinen: per-kisa
+ * `carIds` tulee ILMAISEKSI samassa `/races/{season}`-kutsussa joka tehdään
+ * tällä sivulla joka tapauksessa). Epäonnistuminen TÄSSÄ ei kaada koko
+ * sivua — itse auton perustiedot näytetään silti.
  */
 import { error } from '@sveltejs/kit';
 import {
@@ -73,14 +82,30 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 
 			seasonHistory = await Promise.all(
 				matches.map(async (match) => {
-					if (!match.exclusive) return { ...match, races: [] };
-
 					const [races, finishedRaceIds] = await Promise.all([
 						fetchSeasonRaces(fetch, match.seasonId),
 						fetchFinishedRaceIds(fetch, match.seasonId)
 					]);
 
-					return { ...match, races: mapSeasonRaceList(races, new Set(finishedRaceIds)) };
+					// `exclusive` kaudella TIEDÄMME auton olleen mukana JOKAISESSA
+					// kisassa (ks. matchCarSeasons-kommentti) — näytetään koko lista.
+					// Useamman auton kaudella `/races/{season}`:n JOKAISELLA kisalla
+					// on OMA `carIds`-kenttänsä (käyttäjän raportti 10.10.2026: tieto
+					// on jo tässä samassa vastauksessa, ei tarvitse erillistä
+					// per-kisa-kutsua kuten tämän tiedoston yläkommentti aiemmin
+					// oletti) — suodatetaan näytölle VAIN kisat joiden `carIds`
+					// mainitsee tämän auton nimenomaisesti. Tyhjä/puuttuva `carIds`
+					// EI tarkoita "ei tätä autoa" (ks. types.ts:n
+					// RawRaceListEntry.carIds-kommentti) — se vain jätetään
+					// suodatuksen ulkopuolelle, ei näytetä arvaamalla.
+					const relevantRaces = match.exclusive
+						? races
+						: races.filter((race) => (race.carIds ?? []).map(Number).includes(carId));
+
+					return {
+						...match,
+						races: mapSeasonRaceList(relevantRaces, new Set(finishedRaceIds))
+					};
 				})
 			);
 		} catch (historyError) {

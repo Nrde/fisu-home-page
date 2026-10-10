@@ -104,7 +104,7 @@
 				{#each data.seasonHistory as season (season.seasonId)}
 					<li class="season-history__season">
 						<a href="/kaudet/{season.seasonId}" class="link season-history__season-name">{season.seasonName}</a>
-						{#if !season.exclusive}
+						{#if !season.exclusive && season.races.length === 0}
 							<p class="season-history__note">
 								Kaudella käytössä useampi auto — ei tiedossa mitkä kilpailut ajettiin juuri tällä autolla.
 							</p>

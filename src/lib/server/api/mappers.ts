@@ -281,6 +281,17 @@ export interface CommunityStat {
 	value: number;
 	label: string;
 	context?: string;
+	/**
+	 * `true` kun `value` on vuosiluku (esim. `firstSeasonYear`), ei
+	 * suuruusluokkaa ilmaiseva määrä — StatTile näyttää sen silloin
+	 * ILMAN tuhaterotinta. `toLocaleString('fi-FI')` lisäisi vuosilukuun
+	 * 2018 välilyönnin tuhaterottimena ("2 018"), joka näyttää virheeltä
+	 * (käyttäjän raportti 10.10.2026: "'2018' sisältää ylimääräisen
+	 * välilyönnin"). Muille tilastoille (kilpailut, kuljettajat, kierrokset)
+	 * tuhaterotin on haluttu, siksi tämä on oma lippu eikä StatTilen
+	 * oletuskäytös.
+	 */
+	noGrouping?: boolean;
 }
 
 /**
@@ -301,7 +312,7 @@ export function mapCommunityStats(stats: RawStatsResponse): CommunityStat[] {
 	];
 
 	if (stats.firstSeasonYear !== null) {
-		tiles.push({ value: stats.firstSeasonYear, label: 'Ensimmäinen kausi' });
+		tiles.push({ value: stats.firstSeasonYear, label: 'Ensimmäinen kausi', noGrouping: true });
 	}
 	if (stats.totalLaps !== null) {
 		tiles.push({ value: stats.totalLaps, label: 'Ajettua kierrosta' });
@@ -1537,14 +1548,15 @@ export function mapCars(raw: RawCarListResponse): Car[] {
  *
  * `exclusive`: kauden autopoolissa oli TASAN yksi auto (tämä), jolloin
  * TIEDÄMME sen olleen mukana JOKAISESSA kauden kisassa (ks. Car-kommentin
- * perustelu) — kutsuja hakee tällöin kauden koko kisalistan `races`-
- * kenttään. Useamman auton kausilla EI tässä yritetä selvittää mitä
- * yksittäisiä kisoja tämä auto koski — vaikka `car_assignments`-taulu on
- * NYT käytössä (26.9.2026) ja antaisi periaatteessa tarkan vastauksen
- * `/cars/race/{season}/{race}`:n kautta, se vaatisi YHDEN kutsun PER
- * kisa PER kausi tälle jo valmiiksi raskaalle N+1-sivulle (ks. API-TODO.md)
- * — liian kallista tälle "parasta yritystä" -historialistalle. `exclusive`
- * on tällöin `false` ja `races` jää TYHJÄKSI, ei arvata.
+ * perustelu) — kutsuja näyttää tällöin kauden koko kisalistan. Useamman
+ * auton kausilla (`exclusive: false`) kutsuja (autot/[carId]/+page.server.ts)
+ * suodattaa kauden kisalistan (`/races/{season}`, jo haettu joka tapauksessa)
+ * kisan OMAN `carIds`-kentän perusteella (KORJAUS 10.10.2026, käyttäjän
+ * raportti — ks. kyseisen tiedoston oma kommentti: aiempi oletus tässä, että
+ * tarkka per-kisa-tieto vaatisi erillisen `/cars/race/{season}/{race}`-kutsun
+ * PER kisa, oli virheellinen, `carIds` tulee ILMAISEKSI `/races/{season}`-
+ * vastauksessa). `exclusive` kertoo siis VAIN "näytä kaikki vs. suodata",
+ * ei "tiedetäänkö tälle kaudelle mitään".
  */
 export interface CarSeasonMatch {
 	seasonId: number;

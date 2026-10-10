@@ -183,7 +183,13 @@
 <section class="page-grid section section--stats">
 	<div class="fluid-grid" data-minsize="220px" data-gap="4">
 		{#each data.communityStats as stat (stat.label)}
-			<StatTile value={stat.value} label={stat.label} context={stat.context} />
+			<StatTile
+				value={stat.value}
+				label={stat.label}
+				context={stat.context}
+				align="center"
+				noGrouping={stat.noGrouping}
+			/>
 		{/each}
 	</div>
 </section>

@@ -13,22 +13,30 @@
 		value,
 		label,
 		context,
-		align = 'start'
+		align = 'start',
+		noGrouping = false
 	}: {
 		value: number;
 		label: string;
 		/** Valinnainen pieni konteksti-rivi, esim. "P3 sarjassa, 14 kilpailua" */
 		context?: string;
 		/**
-		 * 'start' (oletus, ennallaan): luku+label vasemmassa reunassa,
-		 * vaihtuu riviksi kun laatta on tarpeeksi leveä (ks. @container
-		 * (min-width: 280px) alla). 'center' (käyttäjän pyyntö 22.9.2026,
-		 * kuljettajaprofiilin tiiviimpi moniruutuinen tilastorivi): luku
-		 * KESKITETTY labelin YLÄPUOLELLE, AINA pinottuna — ei koskaan
-		 * vaihda rivi-layoutiin edes leveällä laatalla, koska keskitetty
-		 * pino+rivi-layout yhdessä näyttäisi epäjohdonmukaiselta. Muut
-		 * käyttöpaikat (esim. etusivun "Yhteisö numeroina") EIVÄT anna
-		 * tätä proppia, joten niiden ulkoasu ei muutu.
+		 * `true` kun `value` on vuosiluku (esim. kauden alkamisvuosi) eikä
+		 * suuruusluokkaa ilmaiseva määrä — `toLocaleString('fi-FI')` lisäisi
+		 * tuhaterottimen (välilyönti), joka näyttäisi vuosiluvussa 2018
+		 * virheelliseltä ("2 018"). Käyttäjän raportti 10.10.2026.
+		 */
+		noGrouping?: boolean;
+		/**
+		 * 'start' (oletus): luku+label vasemmassa reunassa, vaihtuu riviksi
+		 * kun laatta on tarpeeksi leveä (ks. @container (min-width: 280px)
+		 * alla). 'center' (käyttöön otettu alun perin 22.9.2026 kuljettaja-
+		 * profiilin tiiviimpää moniruutuista tilastoriviä varten, ja 10.10.2026
+		 * myös etusivun "Yhteisö numeroina" -riville käyttäjän pyynnöstä —
+		 * luvut ja tekstit keskitettynä laatikoiden sisällä): luku KESKITETTY
+		 * labelin YLÄPUOLELLE, AINA pinottuna — ei koskaan vaihda
+		 * rivi-layoutiin edes leveällä laatalla, koska keskitetty
+		 * pino+rivi-layout yhdessä näyttäisi epäjohdonmukaiselta.
 		 */
 		align?: 'start' | 'center';
 	} = $props();
@@ -61,7 +69,9 @@
 
 <article class="stat-tile" data-align={align} use:inView={() => animateTo(value)}>
 	<div class="stat-tile__inner">
-		<p class="stat-tile__value">{displayValue.toLocaleString('fi-FI')}</p>
+		<p class="stat-tile__value">
+			{displayValue.toLocaleString('fi-FI', { useGrouping: !noGrouping })}
+		</p>
 		<div class="stat-tile__text">
 			<p class="stat-tile__label">{label}</p>
 			{#if context}
