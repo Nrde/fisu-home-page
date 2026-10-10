@@ -12,8 +12,10 @@
 
 ## 10.10.2026 10:15
 
-- Etusivun "Yhteisö numeroina" -laatat ovat nyt siististi keskitetty, eikä "Ensimmäinen kausi" väitä enää FISU:n syntyneen vuonna "2 018" — pelkkä tuhaterotin eksyi vuosilukuun, ei mikään salainen lisäkausi.
-- Jos auto on ajanut jonkin kauden aikana vain yhden kisan (muiden autojen seassa), sen omalla sivulla näkyy nyt se kisa — aiemmin sivu vain kohautti olkiaan ja totesi "ei tiedossa", vaikka tieto olisi ollut koko ajan kädenulottuvilla.
+- Etusivun "Yhteisö numeroina" -laatat ovat nyt siististi keskitetty, eikä "Ensimmäinen kausi" väitä enää FISU:n ensimmäisen kisan olleen "2 018".
+- Jos auto on ajanut jonkin kauden aikana vain yhden kisan (muiden autojen seassa), sen omalla sivulla näkyy nyt se kisa — aiemmin sivulla vain geneerinen "ei tiedossa" tieto, vaikka tieto olisi ollut koko ajan kädenulottuvilla.
+- Muutaman radan kartta ja muita tietoja lisätty, vielä muutama odottaa pöytälaatikossa.
+- Arvostelu sivu alkaa olla julkaisukunnossa.
 
 ## 9.10.2026 22:42
 
