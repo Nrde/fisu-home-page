@@ -77,6 +77,13 @@
 		const wrapper = (event.currentTarget as HTMLImageElement).closest<HTMLElement>('.track-usage-item__image');
 		if (wrapper) wrapper.style.display = 'none';
 	}
+
+	// Käyttäjän raportti 10.10.2026: "1 kisaa" näytti väärältä — sama
+	// yksikkö/monikko-ero kuin radat/[trackid]/+page.svelte:n
+	// raceCountLabel:ssa.
+	function raceCountLabel(count: number): string {
+		return count === 1 ? '1 kisa' : `${count} kisaa`;
+	}
 </script>
 
 <svelte:head>
@@ -132,7 +139,7 @@
 							{:else}
 								<span class="track-usage-item__unknown" title="Tätä rataa ei löydy ratatietokannasta">{track.trackId}</span>
 							{/if}
-							<span class="track-usage-item__count">{track.raceCount} kisaa</span>
+							<span class="track-usage-item__count">{raceCountLabel(track.raceCount)}</span>
 						</div>
 						<div class="track-usage-item__bar">
 							<div
@@ -152,7 +159,7 @@
 	</div>
 
 	<div class="block">
-		<h2 class="block__title">Kausien kehitys</h2>
+		<h2 class="block__title">Kilpailut ja kuljettajat</h2>
 		<ul class="season-trend-list">
 			{#each data.seasonTrends as season (season.seasonId)}
 				<li class="season-trend-item">
@@ -219,7 +226,14 @@
 		text-decoration: none;
 	}
 
+	/* Käyttäjän raportti 10.10.2026: ratalaatikot näyttivät sisennetyiltä
+	   verrattuna niiden yläpuolisen otsikon vasempaan reunaan — sama
+	   tunnettu `reset.css`-bugi kuin muuallakin sivustolla (nollaa VAIN
+	   marginaalin, ei `<ul>`:n selaimen OLETUS-paddingia/pisteitä, ks.
+	   CLAUDE.md). */
 	.track-usage-list {
+		list-style: none;
+		padding: 0;
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-3);
@@ -303,7 +317,11 @@
 		font-size: var(--font-size-sm);
 	}
 
+	/* Sama `reset.css`-korjaus kuin `.track-usage-list`:ssa yllä — tämäkin
+	   on `<ul>`, samalla sivulla, samalla bugilla. */
 	.season-trend-list {
+		list-style: none;
+		padding: 0;
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-2);

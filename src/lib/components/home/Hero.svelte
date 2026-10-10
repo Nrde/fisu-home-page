@@ -65,10 +65,19 @@
 	   ylä-/alapaddingia lisätty hieman takaisin (space-10->space-12,
 	   space-6->space-8) — silti selvästi kevyempi kuin ei-kompakti
 	   70svh-tila, mutta otsikko ei ole enää liian tiiviisti kiinni
-	   reunoissa. */
+	   reunoissa.
+
+	   KÄÄNNETTY (10.10.2026, käyttäjän raportti: "Finnish Simracing
+	   United" -otsikon "g"-kirjain leikkaantuu EDELLEEN alareunasta)
+	   — ala-/yläpaddingi VAIHDETTIIN PÄIN TOISIN: aiemmin yläpaddingi
+	   oli suurempi (space-12) ja alapaddingi pienempi (space-8), jolloin
+	   otsikon alamerkki jäi lähelle laatikon alareunaa. Nyt yläpaddingi
+	   on pienempi (space-8) ja alapaddingi suurempi (space-12) — otsikko
+	   ei ole keskitetty tyhjän tilan suhteen, mutta saa enemmän tilaa
+	   JUURI siihen suuntaan missä alamerkit tarvitsevat sen. */
 	.hero[data-compact='true'] {
 		min-height: 0;
-		padding-block: var(--space-12) var(--space-8);
+		padding-block: var(--space-8) var(--space-12);
 	}
 
 	.hero__glow {
@@ -102,9 +111,13 @@
 		letter-spacing: -0.02em;
 		/* 0.95 leikkasi alamerkkejä (g, y) koska rivikorkeus jäi
 		   kirjaimen todellista mittaa pienemmäksi — background-clip:
-		   text noudattaa rivilaatikon rajoja tarkasti. 1.05 antaa
-		   alamerkeille tilan ja pysyy silti visuaalisesti tiiviinä. */
-		line-height: 1.05;
+		   text noudattaa rivilaatikon rajoja tarkasti. 1.05 EI
+		   riittänyt täysin (käyttäjän raportti 10.10.2026: "g" leikkaantui
+		   EDELLEEN) — nostettu 1.15:een, selvästi enemmän väljyyttä
+		   fontin lihavalle (900) painolle. Ks. myös `.hero[data-compact]`:n
+		   padding-block-kommentti samasta bugiraportista — toinen osatekijä
+		   oli hero-LOHKON oma ala-/yläpadding, ei vain tämä rivikorkeus. */
+		line-height: 1.15;
 		padding-block-end: 0.08em;
 		background: linear-gradient(160deg, var(--color-text) 30%, var(--color-info) 100%);
 		background-clip: text;

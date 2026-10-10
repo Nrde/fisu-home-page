@@ -46,12 +46,16 @@
 {/if}
 
 <style>
+	/* Padding kutistettu ja kulmat `corner-shape: squircle`:lla hieman
+	   kulmikkaammaksi — käyttäjän pyyntö 10.10.2026, ks. saman muutoksen
+	   kommentti SegmentedControl.svelte:ssä (koskee KAIKKIA napeja). */
 	.button {
 		display: inline-flex;
 		align-items: center;
 		gap: var(--space-2);
-		padding: var(--space-3) var(--space-6);
+		padding: var(--space-2) var(--space-4);
 		border-radius: var(--radius-full);
+		corner-shape: squircle;
 		font-weight: 700;
 		font-size: var(--font-size-sm);
 		letter-spacing: 0.04em;
@@ -101,7 +105,7 @@
 	 * globaalia tokenia.
 	 */
 	.button--sm {
-		padding: var(--space-2) var(--space-4);
+		padding: var(--space-1) var(--space-3);
 		font-size: 0.75rem;
 	}
 </style>

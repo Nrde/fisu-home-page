@@ -39,19 +39,27 @@
 </div>
 
 <style>
+	/* Padding kutistettu ja kulmat `corner-shape: squircle`:lla hieman
+	   kulmikkaammaksi (käyttäjän pyyntö 10.10.2026: "pillerit ovat hieman
+	   liian suuret, eivät mahdu riittävän hyvin mobiililayoutille" — koskee
+	   KAIKKIA sivuston "nappi"-elementtejä, ks. sama muutos Button.svelte:ssä).
+	   `corner-shape` on uusi CSS-ominaisuus (progressive enhancement — selaimet
+	   jotka eivät tunne sitä näyttävät vain tavallisen pyöristetyn kulman). */
 	.segmented {
 		display: inline-flex;
 		flex-wrap: wrap;
 		padding: 0.25rem;
 		border-radius: var(--radius-full);
+		corner-shape: squircle;
 		background: var(--color-surface);
 		border: 1px solid var(--color-surface-border);
 		gap: 0.125rem;
 	}
 
 	.segmented__option {
-		padding: var(--space-2) var(--space-4);
+		padding: var(--space-1) var(--space-3);
 		border-radius: var(--radius-full);
+		corner-shape: squircle;
 		font-size: var(--font-size-sm);
 		font-weight: 700;
 		color: var(--color-text-muted);

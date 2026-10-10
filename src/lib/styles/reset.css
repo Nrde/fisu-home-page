@@ -19,6 +19,16 @@ html {
 	-webkit-text-size-adjust: 100%;
 }
 
+/* KORJAUS (10.10.2026, käyttäjän raportti: "kun maalaan tekstiä, maalauksen
+   väri on sama kuin tekstin väri eikä sitä enää näe"): `color-scheme: dark`
+   yllä ohjaa selaimen OMAN ::selection-oletusvärin tumman teeman mukaiseksi,
+   joka tällä sivustolla osuu lähes samaksi kuin --color-text (lähes valkoinen)
+   — valittu teksti katoaa näkyvistä. Asetetaan oma, selvästi erottuva pari. */
+::selection {
+	background: var(--color-info);
+	color: var(--color-bg);
+}
+
 body {
 	min-height: 100svh;
 	line-height: var(--line-height-base);

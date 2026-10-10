@@ -58,6 +58,35 @@
 		if (!date) return undefined;
 		return new Intl.DateTimeFormat('fi-FI', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
 	}
+
+	/**
+	 * Käyttäjän raportti 10.10.2026 (esim. kausi 11, Le Mans 6h): kisa jota
+	 * EI koskaan ajettu näytti "Tuleva" -tilassa vaikka kisapäivä on kauan
+	 * mennyttä aikaa — API:lla ei ole erillistä "peruttu"-kenttää (vahvistettu
+	 * types.ts:n RawRaceListEntry-kommentista: vain `finished`-päättely
+	 * `/finishedraces/{season}`:n ids-joukon kautta), joten tila PÄÄTELLÄÄN
+	 * tässä päivämäärän perusteella kun kisaa ei ole merkitty ajetuksi:
+	 *   - alle `RECENT_RACE_GRACE_DAYS` päivää sitten -> "Ei tuloksia"
+	 *     (tulokset ovat todennäköisesti vain vielä syöttämättä, ei syytä
+	 *     väittää kisaa peruuntuneeksi)
+	 *   - kauemmin sitten -> "Ei ajettu" (käyttäjän valitsema sana 10.10.2026,
+	 *     "Peruttu"-sanan tilalle — ei väitä TIETÄVÄNSÄ että kisa peruutettiin,
+	 *     vain ettei sitä ajettu)
+	 * Ei täysin varma signaali (API saattaisi joskus lisätä tuloksia
+	 * jälkikäteen vanhalle kisalle), mutta parempi arvaus kuin "Tuleva"
+	 * kisalle joka on ollut kalenterissa vuosia sitten.
+	 */
+	const RECENT_RACE_GRACE_DAYS = 5;
+
+	function raceStatusLabel(race: { finished: boolean; date: Date | undefined }): string {
+		if (race.finished) return 'Ajettu';
+		if (!race.date) return 'Tuleva';
+
+		const daysSinceRace = (Date.now() - race.date.getTime()) / (1000 * 60 * 60 * 24);
+		if (daysSinceRace <= 0) return 'Tuleva';
+		if (daysSinceRace <= RECENT_RACE_GRACE_DAYS) return 'Ei tuloksia';
+		return 'Ei ajettu';
+	}
 </script>
 
 <svelte:head>
@@ -121,7 +150,7 @@
 				{#if formatDate(race.date)}
 					<span class="race-list__date">{formatDate(race.date)}</span>
 				{/if}
-				<span class="race-list__status">{race.finished ? 'Ajettu' : 'Tuleva'}</span>
+				<span class="race-list__status">{raceStatusLabel(race)}</span>
 			</li>
 		{/each}
 	</ul>
