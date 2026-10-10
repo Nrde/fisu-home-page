@@ -10,6 +10,11 @@
 	  - Yksi rivi per muutoskohta.
 -->
 
+## 10.10.2026 10:15
+
+- Etusivun "Yhteisö numeroina" -laatat ovat nyt siististi keskitetty, eikä "Ensimmäinen kausi" väitä enää FISU:n syntyneen vuonna "2 018" — pelkkä tuhaterotin eksyi vuosilukuun, ei mikään salainen lisäkausi.
+- Jos auto on ajanut jonkin kauden aikana vain yhden kisan (muiden autojen seassa), sen omalla sivulla näkyy nyt se kisa — aiemmin sivu vain kohautti olkiaan ja totesi "ei tiedossa", vaikka tieto olisi ollut koko ajan kädenulottuvilla.
+
 ## 9.10.2026 22:42
 
 - ISO API päivitys, ehkä kaikki bugit korjattu, riivitty kasaan kadonneet kisat ja kaudet jne. 
