@@ -10,6 +10,11 @@
 	  - Yksi rivi per muutoskohta.
 -->
 
+## 11.10.2026 15:30
+
+- Autoilla on nyt kasvot! Autolistassa ja auton omalla sivulla näkyy esikatselukuva — jos ylläpito on sellaisen jaksanut ladata, tietysti, muuten näkyy edelleen vaatimaton "Kuvaa ei vielä lisätty" -teksti.
+- Auton sivu muutettiin näyttämään vähän enemmän radan sivulta: kuva ja tietolaatikko rinnakkain, kuvaus omassa siistissä laatikossaan.
+
 ## 10.10.2026 10:15
 
 - Etusivun "Yhteisö numeroina" -laatat ovat nyt siististi keskitetty, eikä "Ensimmäinen kausi" väitä enää FISU:n ensimmäisen kisan olleen "2 018".
