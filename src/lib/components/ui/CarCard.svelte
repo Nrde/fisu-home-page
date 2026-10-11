@@ -10,14 +10,16 @@
 	 * saman muotoisina riippumatta siitä kuinka täydellisesti ylläpito on
 	 * ehtinyt täyttää kunkin auton tiedot.
 	 *
-	 * Media-alue (yläreuna, neliö) on VALMISTELTU valmistajan logoa varten
-	 * (käyttäjän pyyntö: "prepare the card having either manufacturer logo
-	 * or something similar") SAMALLA periaatteella kuin TrackCard.svelte:n
-	 * ratakartta-alue: jos `logoUrl` joskus saadaan (API:lla ei ole tätä
-	 * kenttää TÄLLÄ HETKELLÄ ollenkaan — tämä on siis valmiiksi rakennettu
-	 * "kun se joskus tulee" -varten, ei näytä mitään väärää dataa nyt),
-	 * näytetään kuva; muuten hillitty tekstiplaceholder, sama ratkaisu kuin
-	 * TrackCardilla puuttuvalle ratakartalle.
+	 * Media-alue (yläreuna, neliö) näyttää auton esikatselukuvan (UUSI
+	 * 11.10.2026, käyttäjän pyyntö) — osoite rakennetaan mappers.ts:ssä
+	 * auton id:stä (ks. `Car.imageUrl`-kommentti), SAMALLA periaatteella
+	 * kuin TrackCard.svelte:n ratakartta-alue. API:lla/mediapalvelimella ei
+	 * ole tietoa SIITÄ onko kuva oikeasti olemassa (ylläpito lataa ne
+	 * käsin), joten `onerror`-placeholder kattaa puuttuvan kuvan samalla
+	 * tavalla kuin TrackCardilla. Käyttäjän suunnitelma (11.10.2026): kiinteä-
+	 * kokoiset webp-versiot myöhemmin, isompi yksittäisen auton sivulle ja
+	 * pienempi tähän listakorttiin — toistaiseksi samaa alkuperäiskokoista
+	 * PNG:tä skaalataan CSS:llä (`object-fit: contain`).
 	 */
 	import ReviewBadge from './ReviewBadge.svelte';
 
@@ -27,7 +29,7 @@
 		manufacturer,
 		carClass,
 		sim,
-		logoUrl,
+		imageUrl,
 		reviewAverage,
 		reviewCount
 	}: {
@@ -37,8 +39,8 @@
 		/** Nimetty `carClass`, ei `class` — `class` on varattu HTML/Svelte-attribuutille. */
 		carClass?: string;
 		sim?: string;
-		/** Ks. yllä oleva komponenttikommentti — aina `undefined` toistaiseksi, ei API-kenttää vielä olemassa. */
-		logoUrl?: string;
+		/** Ks. yllä oleva komponenttikommentti — mappers.ts:n `Car.imageUrl`, aina laskettu vaikka kuvaa ei olisi oikeasti olemassa. */
+		imageUrl?: string;
 		/**
 		 * Arvostelujen keskiarvo/määrä — UUSI 2.10.2026, käyttäjän pyyntö
 		 * ("Then that info will be presented with the basic non dynamic
@@ -56,11 +58,11 @@
 
 <a class="car-card" href="/autot/{id}">
 	<div class="car-card__media">
-		{#if logoUrl && !imageFailed}
-			<img src={logoUrl} alt="" loading="lazy" onerror={() => (imageFailed = true)} />
+		{#if imageUrl && !imageFailed}
+			<img src={imageUrl} alt="" loading="lazy" onerror={() => (imageFailed = true)} />
 		{:else}
 			<div class="car-card__media-placeholder">
-				<span>Logoa<br />ei vielä lisätty</span>
+				<span>Kuvaa<br />ei vielä lisätty</span>
 			</div>
 		{/if}
 	</div>
@@ -113,15 +115,20 @@
 		justify-content: center;
 		border-radius: var(--radius-md);
 		background: color-mix(in oklch, white 96%, var(--color-bg));
+		overflow: hidden;
 	}
 
+	/* Käyttäjän palaute 11.10.2026: kuvat ovat itsessään valkoisella taustalla,
+	   mutta aiempi padding + `object-fit: contain` jätti kapean raidan
+	   `.car-card__media`:n OFF-WHITE-taustaa näkyviin kuvan reunoille ("the
+	   preview image is also zoomed out so the offwhite shows from behind") —
+	   `cover` + nollapadding täyttää koko neliön kuvalla, jolloin taustaväri
+	   ei pääse näkyviin (se jää olemaan VAIN placeholderia varten, ks. alla). */
 	.car-card__media img {
 		display: block;
 		width: 100%;
 		height: 100%;
-		padding: var(--space-4);
-		box-sizing: border-box;
-		object-fit: contain;
+		object-fit: cover;
 	}
 
 	.car-card__media-placeholder {

@@ -25,6 +25,7 @@
 					manufacturer={car.manufacturer}
 					carClass={car.class}
 					sim={car.sim}
+					imageUrl={car.imageUrl}
 					reviewAverage={review?.average}
 					reviewCount={review?.count}
 				/>

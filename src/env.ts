@@ -38,6 +38,23 @@ export const variables = defineEnvVars({
 		schema: (value: string | undefined) => value ?? 'https://fisu.simracing.fi/media/radat/'
 	},
 
+	// Käyttäjän pyyntö 11.10.2026: auton kuva (esim. auto id 22 ->
+	// https://fisu.simracing.fi/media/autot/22.png) autolistan korttiin ja
+	// yksittäisen auton tarkennussivulle. SAMA isäntä kuin
+	// `TRACK_IMAGE_BASE_URL`, mutta ERI polku (`/autot/` vs. `/radat/`) ja
+	// ERI tiedostomuoto (PNG eikä SVG) — siksi omana muuttujanaan eikä
+	// yhdistettynä TRACK_IMAGE_BASE_URL:iin. Kuvat ladataan SUORAAN
+	// selaimesta kuten ratakartatkin (ks. mappers.ts:n `Car.imageUrl`-
+	// kommentti), eivät tämän sovelluksen API-kääreen kautta. Kiinteä-
+	// kokoiset esikatselukuvat tältä osoitteelta tulossa myöhemmin
+	// (käyttäjän suunnitelma: generoida webp-versiot eri kokoihin —
+	// isompi yksittäisen auton sivulle, pienempi autolistaan) — toistaiseksi
+	// käytetään samaa alkuperäiskokoista PNG:tä molemmissa paikoissa.
+	CAR_IMAGE_BASE_URL: {
+		description: 'Autojen esikatselukuvien base-URL, esim. https://fisu.simracing.fi/media/autot/',
+		schema: (value: string | undefined) => value ?? 'https://fisu.simracing.fi/media/autot/'
+	},
+
 	// Käyttäjän pyyntö 22.9.2026: FISU:n Discord-kutsulinkki (Header.svelte:n
 	// "Discord"-nappi + mobiilivalikon vastaava linkki) pois kovakoodauksesta.
 	// TOISIN kuin `FISU_API_BASE_URL`/`TRACK_IMAGE_BASE_URL` — tämä NÄYTETÄÄN

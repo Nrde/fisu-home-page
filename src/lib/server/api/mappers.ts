@@ -7,7 +7,7 @@
  * tätä tiedostoa (ja types.ts:ää) pitää korjata. +page.server.ts ja
  * komponentit eivät tiedä mitään raakamuodosta.
  */
-import { TRACK_IMAGE_BASE_URL } from '$app/env/private';
+import { CAR_IMAGE_BASE_URL, TRACK_IMAGE_BASE_URL } from '$app/env/private';
 import { parseHelsinkiDateTime } from '#lib/utils/helsinkiTime.ts';
 import type {
 	RawCar,
@@ -1498,6 +1498,17 @@ export interface Car {
 	class?: string;
 	sim?: string;
 	notes?: string;
+	/**
+	 * Auton esikatselukuva (UUSI 11.10.2026, käyttäjän pyyntö). API:lla ei
+	 * ole tälle omaa kenttää — osoite rakennetaan auton id:stä samalla
+	 * periaatteella kuin `Track.imageUrl`:ssa (ks. sen kommentti): PNG
+	 * aina olemassa VAIN jos ylläpito on sellaisen ladannut, joten
+	 * komponentti varautuu 404:ään (`onerror`-placeholder, ks.
+	 * CarCard.svelte). AINA asetettu (ei valinnainen kuten muut tämän
+	 * tyypin kentät) koska se on puhtaasti laskettu id:stä, ei riippuvainen
+	 * siitä mitä API todella palautti.
+	 */
+	imageUrl: string;
 }
 
 /**
@@ -1522,13 +1533,15 @@ export interface Car {
  * antavat vain `id`:n, sanakirjamuotoiset vain `carId`:n.
  */
 export function mapCar(raw: RawCar): Car {
+	const id = Number(raw.id ?? raw.carId);
 	return {
-		id: Number(raw.id ?? raw.carId),
+		id,
 		name: raw.name,
 		manufacturer: raw.manufacturer ?? undefined,
 		class: raw.class ?? undefined,
 		sim: raw.sim || undefined,
-		notes: raw.notes ?? undefined
+		notes: raw.notes ?? undefined,
+		imageUrl: `${CAR_IMAGE_BASE_URL}${id}.png`
 	};
 }
 

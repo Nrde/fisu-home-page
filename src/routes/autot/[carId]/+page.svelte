@@ -7,6 +7,23 @@
 
 	const car = $derived(data.car);
 
+	// Isompi esikatselukuva kuin autolistan CarCard.svelte:ssä (käyttäjän
+	// pyyntö 11.10.2026: "I would like to get slightly bigger image on the
+	// individual car page and smaller for the car list page") — toistaiseksi
+	// SAMA PNG molemmissa paikoissa (kokoerot hoidetaan CSS:llä), kiinteä-
+	// kokoiset webp-versiot tulossa myöhemmin (ks. mappers.ts:n
+	// `Car.imageUrl`-kommentti). `imageFailed` samalla periaatteella kuin
+	// CarCard.svelte:ssä — ylläpito ei ole latautunut kuvaa kaikille autoille.
+	let imageFailed = $state(false);
+	// Nollataan kun navigoidaan autosta toiseen SAMAN komponentti-instanssin
+	// sisällä (SvelteKit ei purkaisi/luo komponenttia uudelleen pelkän route-
+	// parametrin muuttuessa) — muuten edellisen auton 404 jäisi "jumiin"
+	// seuraavalle autolle vaikka sillä olisi kuva.
+	$effect(() => {
+		car.id;
+		imageFailed = false;
+	});
+
 	// Sama muotoiluperiaate kuin muualla sivustolla (fi-FI, Intl.DateTimeFormat).
 	function formatDate(date: Date | undefined): string | undefined {
 		if (!date) return undefined;
@@ -37,6 +54,21 @@
 	function simBadge(sim: string): { label: string; accent: 'success' | 'info' | 'special' | 'warning' | 'danger' } {
 		return SIM_INFO[sim.toUpperCase()] ?? { label: sim, accent: 'info' };
 	}
+
+	// KORJAUS (11.10.2026, käyttäjän palaute): ensimmäinen versio tästä
+	// uudelleensuunnittelusta laittoi luokan/kausimäärän omaan "Labeli: arvo"
+	// -laatikkoon sivuun — käyttäjän mukaan laatikko näytti isolta tyhjältä
+	// tilalta kahdella rivillä sisältöä ("the current huge box on the side
+	// and 2 lines of content looks bad"). Luokka ja kausimäärä näytetään nyt
+	// sen sijaan PIENINÄ PILLEREINÄ nimen alla ILMAN labeleita (sama "pilli"-
+	// resepti kuin `car.sim`:llä, ks. `simBadge`/`.car-sim-badge`) — sivuun
+	// jäänyt laatikko käytetään nyt `car.notes`-kuvaustekstille (ks. markup).
+	// `seasonCountLabel` säilyy, `orFallback` poistettu (pillerit NÄYTETÄÄN
+	// vain kun arvo on olemassa, ei enää "Ei tiedossa" -tekstiä labelittomassa
+	// pillerissä — se näyttäisi oudolta tyhjänä tagina).
+	function seasonCountLabel(count: number): string {
+		return count === 1 ? '1 kausi' : `${count} kautta`;
+	}
 </script>
 
 <svelte:head>
@@ -47,33 +79,69 @@
 <section class="page-grid section">
 	<a href="/autot" class="link back-link">← Kaikki autot</a>
 
+	<!--
+		Otsikkolohko — SAMA rakenne kuin radat/[trackid]/+page.svelte:n
+		`.track-heading`:lla (käyttäjän pyyntö 11.10.2026: "make the structure
+		of car detail page similar to track detail layout"): nimi+lisätieto
+		VASEMMALLA omana tekstilohkonaan, erottuva "tunniste" (radalla maalippu,
+		autolla simulaattoripilleri) OIKEASSA REUNASSA koko lohkon korkuisena.
+	-->
 	<div class="car-heading">
-		<h1 class="car-name">{car.name}</h1>
+		<div class="car-heading__text">
+			<h1 class="car-name">{car.name}</h1>
+			{#if car.manufacturer}
+				<p class="car-manufacturer">{car.manufacturer}</p>
+			{/if}
+			<!--
+				Luokka + kausimäärä PIENINÄ PILLEREINÄ nimen alla, ILMAN labeleita
+				(käyttäjän palaute 11.10.2026 — ks. script-lohkon kommentti).
+				Kausipilleri näkyy VAIN jos autolla on vähintään yksi kausi
+				historiassa (`0 kautta` -pilleri ei toisi mitään hyötyä, sama
+				periaate kuin luokan puuttuessa — piilotetaan kokonaan sen sijaan
+				että näytettäisiin tyhjä/arvoton tagi).
+			-->
+			{#if car.class || data.seasonHistory.length > 0}
+				<div class="car-tags">
+					{#if car.class}
+						<span class="car-tag" data-accent="warning">{car.class}</span>
+					{/if}
+					{#if data.seasonHistory.length > 0}
+						<span class="car-tag" data-accent="info">{seasonCountLabel(data.seasonHistory.length)}</span>
+					{/if}
+				</div>
+			{/if}
+		</div>
 		{#if car.sim}
 			{@const sim = simBadge(car.sim)}
 			<span class="car-sim-badge" data-accent={sim.accent}>{sim.label}</span>
 		{/if}
 	</div>
-	{#if car.manufacturer}
-		<p class="car-manufacturer">{car.manufacturer}</p>
-	{/if}
 
-	{#if car.class || car.notes}
-		<div class="car-facts">
-			{#if car.class}
-				<p class="car-facts__item">
-					<span class="car-facts__label">Luokka</span>
-					<span class="car-facts__value">{car.class}</span>
-				</p>
-			{/if}
-			{#if car.notes}
-				<p class="car-facts__item car-facts__item--notes">
-					<span class="car-facts__label">Lisätiedot</span>
-					<span class="car-facts__value">{car.notes}</span>
-				</p>
-			{/if}
-		</div>
-	{/if}
+	<!--
+		Kuva + kuvauslaatikko rinnakkain — SAMA `.track-body`-periaate kuin
+		radan tarkennussivulla: kapealla pinossa, riittävän leveällä kuva
+		vasemmalla ja laatikko oikealla samankorkuisena (ks. tyylilohkon
+		`.car-body`-kommentti). Kuva piilotetaan kokonaan jos se 404:ää (ks.
+		`imageFailed`-kommentti script-lohkossa). Sivuun (tai mobiililla
+		kuvan ALLE) jäänyt laatikko näyttää NYT `car.notes`-kuvaustekstin
+		(käyttäjän palaute 11.10.2026 — aiempi erillinen luokka/kausi-sisältö
+		siirrettiin pillereiksi yllä, joten laatikko ei ollut enää tyhjillään
+		ilman tätä sisältöä). Jos autolla ei ole kuvaustekstiä, koko laatikko
+		jätetään pois (ei näytetä tyhjää laatikkoa).
+	-->
+	<div class="car-body">
+		{#if !imageFailed}
+			<div class="car-image">
+				<img src={car.imageUrl} alt="" loading="lazy" onerror={() => (imageFailed = true)} />
+			</div>
+		{/if}
+
+		{#if car.notes}
+			<div class="car-facts">
+				<p class="car-facts__notes">{car.notes}</p>
+			</div>
+		{/if}
+	</div>
 
 	<!--
 		PÄIVITYS (2.10.2026): käyttäjän 25.9.2026 mainitsema "tulossa"-ominaisuus
@@ -85,7 +153,7 @@
 	-->
 	{#if data.reviews}
 		<ReviewSummarySection
-			title="Arvostelut"
+			title="Auton arvostelut"
 			count={data.reviews.summary.count}
 			average={data.reviews.summary.average}
 			distribution={data.reviews.summary.distribution}
@@ -149,37 +217,87 @@
 	}
 
 	/*
-	 * Nimi + simulaattoripilleri SAMALLA rivillä, pystysuunnassa keskitettynä
-	 * (käyttäjän pyyntö 25.9.2026) — `flex-wrap: wrap` sallii pillerin
-	 * TIPPUA nimen ALLE kapealla mobiililla sen sijaan että se puristaisi
-	 * nimeä tai ylivuotaisi, `align-items: baseline` pitää molemmat samalla
-	 * tekstiviivalla kun ne MAHTUVAT samalle riville.
+	 * Otsikkolohko — SAMA rakenne/perustelu kuin radat/[trackid]/+page.svelte:n
+	 * `.track-heading`:lla: tekstilohko (nimi+valmistaja) VASEMMALLA,
+	 * simulaattoripilleri OIKEASSA REUNASSA koko lohkon (molempien rivien)
+	 * korkuisena — `space-between` työntää pillerin ääriin, `align-items:
+	 * center` keskittää sen pystysuunnassa tekstilohkon korkeutta vasten.
+	 * UUDELLEENSUUNNITTELU 11.10.2026 (käyttäjän pyyntö, ks. script-lohkon
+	 * kommentti): korvaa aiemman `align-items: baseline` -rivin jossa pilleri
+	 * oli nimen VIERESSÄ samalla rivillä — track-sivun kaltainen asettelu
+	 * toimii paremmin kun nimi+valmistaja ovat KAKSI riviä (track-sivulla
+	 * nimi+sijainti), ei yksi.
 	 */
 	.car-heading {
 		display: flex;
-		flex-wrap: wrap;
-		align-items: baseline;
-		column-gap: var(--space-3);
-		row-gap: var(--space-1);
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-4);
 	}
 
 	.car-name {
-		/* Fluidi kokoa suhteessa `.section`:in leveyteen (cqi) — kutistuu
-		   kapealla mobiililla, jotta nimi + pilleri mahtuvat samalle riville
-		   pidempään ennen kuin pilleri tippuu omalle rivilleen. */
+		/* Fluidi kokoa suhteessa `.section`:in leveyteen (cqi), sama periaate
+		   kuin aiemmin — estää nimeä hyppäämästä tarpeettomasti kahdelle
+		   riville kun ikkunaa kavennetaan. */
 		font-size: clamp(1.4rem, 1.1rem + 2.4cqi, 2.25rem);
 		font-weight: 800;
 		letter-spacing: -0.01em;
 	}
 
+	.car-manufacturer {
+		margin-top: var(--space-1);
+		color: var(--color-text-muted);
+		font-weight: 600;
+	}
+
+	/*
+	 * Luokka + kausimäärä -pillerit (käyttäjän palaute 11.10.2026 — ks.
+	 * script-lohkon kommentti) — `flex-wrap: wrap` sallii pudota useammalle
+	 * riville jos tila loppuu kesken (ei realistista kahdella lyhyellä
+	 * pillerillä, mutta sama turvaverkko kuin muuallakin sivustolla).
+	 */
+	.car-tags {
+		margin-top: var(--space-2);
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+	}
+
+	/*
+	 * Sama "pilli, oma väri per arvo" -resepti kuin `.car-sim-badge`:lla
+	 * (ja TrackCard.svelte:n `.track-card__stat`:lla) — VAIN pienempi, koska
+	 * näitä on kaksi rinnakkain eikä niiden tarvitse kilpailla huomiosta
+	 * simulaattoripillerin tai nimen kanssa.
+	 */
+	.car-tag {
+		--accent: var(--color-info);
+
+		display: inline-flex;
+		align-items: center;
+		padding: 0.2em 0.75em;
+		border-radius: var(--radius-full);
+		background: color-mix(in oklch, var(--accent) 16%, var(--color-surface));
+		border: 1px solid color-mix(in oklch, var(--accent) 32%, transparent);
+		color: var(--accent);
+		font-size: clamp(0.68rem, 0.6rem + 0.4cqi, 0.8rem);
+		font-weight: 700;
+		white-space: nowrap;
+	}
+
+	.car-tag[data-accent='warning'] {
+		--accent: var(--color-warning);
+	}
+	.car-tag[data-accent='info'] {
+		--accent: var(--color-info);
+	}
+
 	/*
 	 * Simulaattoripilleri — sama "pilli, oma väri per arvo" -resepti kuin
-	 * TrackCard.svelte:n `.track-card__stat`:lla (turns/built saavat omat
-	 * värinsä siellä), sovellettuna `data-accent`:iin (sama nimeämiskäytäntö
-	 * kuin Badge.svelte/ListRow:ssa) SIM_INFO-taulukon (yllä script-lohkossa)
-	 * antaman aksentin mukaan — eri simulaattorit erottuvat värillä TOISISTAAN
-	 * ensisilmäyksellä sen sijaan että kaikki olisivat samaa harmaata "Simulaattori:
-	 * X" -tekstiä kuten aiemmin `.car-facts`-laatikossa.
+	 * TrackCard.svelte:n `.track-card__stat`:lla, sovellettuna `data-accent`:iin
+	 * SIM_INFO-taulukon (script-lohko) antaman aksentin mukaan. `flex-shrink: 0`
+	 * TÄRKEÄ nyt kun pilleri on `.car-heading`:n `space-between`-rivillä eikä
+	 * enää samalla tekstirivillä nimen kanssa — ilman sitä se voisi puristua
+	 * kapealla näytöllä.
 	 */
 	.car-sim-badge {
 		--accent: var(--color-info);
@@ -192,9 +310,6 @@
 		background: color-mix(in oklch, var(--accent) 16%, var(--color-surface));
 		border: 1px solid color-mix(in oklch, var(--accent) 32%, transparent);
 		color: var(--accent);
-		/* Fluidi, mutta selvästi PIENEMPI kuin nimi — pilleri on lisätieto,
-		   ei kilpaile nimen kanssa huomiosta. Riittävän pieni ala-arvo (0.7rem)
-		   ettei se työnnä nimeä pois riviltä kapeimmillakaan mobiilileveyksillä. */
 		font-size: clamp(0.7rem, 0.62rem + 0.5cqi, 0.85rem);
 		font-weight: 700;
 		white-space: nowrap;
@@ -216,58 +331,85 @@
 		--accent: var(--color-special);
 	}
 
-	.car-manufacturer {
-		margin-top: var(--space-1);
-		color: var(--color-text-muted);
-		font-weight: 600;
-	}
-
-	.car-facts {
-		margin-top: var(--space-6);
+	/*
+	 * Kuva + tietolaatikko rinnakkain — SAMA `@container`-tekniikka ja
+	 * perustelu kuin radat/[trackid]/+page.svelte:n `.track-body`:lla:
+	 * `.section` (ei `.car-body` itse, ks. sen oma kommentti CSS:n alussa)
+	 * on kokokyselyn container, kapealla pinossa pystysuunnassa, riittävän
+	 * leveällä kuva vasemmalla ja `.car-facts` oikealla samankorkuisena
+	 * (`align-items` oletuksessaan `stretch`, `.car-image`:lle oma
+	 * `align-self: flex-start` VAIN leveässä kyselyssä pitämään sen neliönä).
+	 */
+	.car-body {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-3);
-		padding: var(--space-6);
+		gap: var(--space-6);
+		margin-top: var(--space-6);
+	}
+
+	/*
+	 * Esikatselukuva (käyttäjän pyyntö 11.10.2026) — sama "vaalea neliö"
+	 * -tausta kuin CarCard.svelte:n `.car-card__media`:ssa ja radan
+	 * `.track-map`:ssa, jotta tumma/valkoinen autokuva erottuu samalla
+	 * tavalla kaikissa kolmessa paikassa. `object-fit: cover` + nollapadding
+	 * (käyttäjän palaute 11.10.2026 — "the preview image is also zoomed out
+	 * so the offwhite shows from behind"): täyttää koko neliön valkopohjaisella
+	 * kuvalla, ettei tausta kurkista reunoilta läpi.
+	 */
+	.car-image {
+		width: 100%;
+		aspect-ratio: 1 / 1;
+		border-radius: var(--radius-lg);
+		background: color-mix(in oklch, white 96%, var(--color-bg));
+		overflow: hidden;
+	}
+
+	.car-image img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	/*
+	 * Kuvauslaatikko (käyttäjän palaute 11.10.2026 — ks. script-lohkon ja
+	 * markup-kommentin selitys): näyttää `car.notes`-vapaatekstin samalla
+	 * laatikoinnilla kuin aiempi `.car-facts`/radan `.track-info`, mutta
+	 * nyt `.car-body`:n TOISENA sarakkeena (kuvan vierellä leveällä,
+	 * ALAPUOLELLA kapealla) sen sijaan että se olisi erillinen koko levyinen
+	 * lohko — täyttää aiemmin tyhjäksi jääneen tilan kuvan vieressä.
+	 */
+	.car-facts {
+		display: flex;
+		align-items: center;
+		padding: clamp(0.8rem, 0.5rem + 1.1cqi, 1.6rem);
 		border-radius: var(--radius-lg);
 		background: var(--color-surface);
 		border: 1px solid var(--color-surface-border);
 	}
 
-	.car-facts__item {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: baseline;
-		gap: 0.4em;
-	}
-
-	.car-facts__item--notes {
-		flex-direction: column;
-		align-items: flex-start;
-		gap: 0.2em;
-	}
-
-	.car-facts__label {
-		font-weight: 700;
+	.car-facts__notes {
+		font-size: var(--font-size-base);
+		line-height: 1.6;
 		color: var(--color-text-muted);
-		font-size: var(--font-size-sm);
 	}
 
-	.car-facts__label::after {
-		content: ':';
-	}
+	/* VAIHE: leveä layout — sama 640px-raja kuin radan tarkennussivulla. */
+	@container (min-width: 640px) {
+		.car-body {
+			flex-direction: row;
+		}
 
-	.car-facts__item--notes .car-facts__label::after {
-		content: '';
-	}
+		.car-image {
+			align-self: flex-start;
+			flex-shrink: 0;
+			width: clamp(15rem, 34cqi, 23rem);
+		}
 
-	.car-facts__value {
-		font-weight: 700;
-	}
-
-	.car-facts__item--notes .car-facts__value {
-		font-weight: 400;
-		color: var(--color-text-muted);
-		line-height: 1.5;
+		.car-facts {
+			flex: 1 1 auto;
+			min-width: 0;
+		}
 	}
 
 	.season-history {
