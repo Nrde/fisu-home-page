@@ -445,8 +445,14 @@ export type RawTrackListResponse = RawTrack[];
  * GET /drivers/{organiser}/{driverId}/career — VAHVISTETTU 21.9.2026
  * käyttäjän liittämästä oikeasta esimerkkivastauksesta (kuljettaja
  * Panu Artimo, driverId 732, 18 kautta). Palauttaa YHDEN kuljettajan
- * KOKO uran: kaudet UUSIN ENSIN (vahvistettu esimerkkidatasta — seasonId
- * laskee järjestyksessä 168 -> 59), jokaisella kaudella sen kisat
+ * KOKO uran: PÄIVITYS 15.10.2026 (käyttäjän raportti: kaudet näkyivät
+ * väärässä järjestyksessä) — alkuperäinen kommentti tässä väitti kausien
+ * tulevan "uusin ensin seasonId:n arvon mukaan", mikä piti paikkansa
+ * VANHASSA id-avaruudessa (21.9.2026) mutta EI enää 9.10.2026 id-
+ * migraation jälkeen (ks. mappers.ts:n `mapDriverCareer`-kommentti) —
+ * `data.seasons`:n OMAAN järjestykseen EI SIIS SAA luottaa, se
+ * lajitellaan uudelleen mapperissa `organiserSummary`:n perusteella.
+ * Jokaisella kaudella sen kisat
  * (jokainen `RawDriverCareerRace` on tämän YHDEN kuljettajan oma rivi
  * kyseisestä kisasta, EI koko kisan tulostaulukko), sekä kausi- ja
  * urakohtaiset valmiiksi lasketut tilastot (`stats`/`careerStats`, sama

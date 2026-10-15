@@ -3,7 +3,7 @@
  * {driverId}/career`-kutsulta (kaudet + kisat + valmiit tilastot).
  */
 import { error } from '@sveltejs/kit';
-import { ApiError, fetchDriverCareer } from '#lib/server/api/client.ts';
+import { ApiError, fetchDriverCareer, fetchOrganiserSummary } from '#lib/server/api/client.ts';
 import { mapDriverCareer } from '#lib/server/api/mappers.ts';
 import type { PageServerLoad } from './$types';
 
@@ -16,7 +16,24 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 	}
 
 	try {
-		const career = mapDriverCareer(await fetchDriverCareer(fetch, ORGANISER, driverId));
+		// KORJAUS 15.10.2026 (käyttäjän raportti: kuljettajan kaudet väärässä
+		// järjestyksessä, esim. alkoi S9:stä ja päättyi S8½:een): `/drivers/
+		// {organiser}/{id}/career`:n OMA `seasons`-taulukkojärjestys seuraa
+		// `seasonId`:n ARVOA, joka ei enää ole kronologinen 9.10.2026 id-
+		// migraation jälkeen (ks. mappers.ts:n `mapSeasonList`/
+		// `mapSeasonFilterOptions`:n 10.10.2026-kommentit SAMASTA juurisyystä
+		// `organiserSummary`:n puolella). `organiserSummary`:n OMA taulukko-
+		// järjestys ON sen sijaan luotettavasti kronologinen (uusin ensin,
+		// käsin tarkistettu) — haetaan se tässä RINNAN ja käytetään
+		// `mapDriverCareer`:ssa kaudet-taulukon uudelleenjärjestykseen,
+		// sen sijaan että luotettaisiin career-endpointin omaan järjestykseen.
+		const [rawCareer, organiserSummary] = await Promise.all([
+			fetchDriverCareer(fetch, ORGANISER, driverId),
+			fetchOrganiserSummary(fetch, ORGANISER)
+		]);
+		const chronologicalSeasonIds = organiserSummary.map((season) => Number(season.seasonId));
+
+		const career = mapDriverCareer(rawCareer, chronologicalSeasonIds);
 		return { career };
 	} catch (err) {
 		// KORJAUS 15.10.2026 (käyttäjän raportti: kaikki kuljettajasivut

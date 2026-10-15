@@ -1314,11 +1314,32 @@ function mapDriverCareerRace(raw: RawDriverCareerRace, rowKey: number): DriverCa
 	};
 }
 
-export function mapDriverCareer(response: RawDriverCareerResponse): DriverCareer {
+/**
+ * `chronologicalSeasonIds`: `organiserSummary`:n OMA taulukkojärjestys
+ * (uusin ensin, ks. `mapSeasonList`:n 10.10.2026-kommentti) — KÄYTTÄJÄN
+ * RAPORTTI 15.10.2026: tämän endpointin OMA `seasons`-järjestys seuraa
+ * `seasonId`:n ARVOA, joka EI enää ole kronologinen 9.10.2026 id-
+ * migraation jälkeen (esim. "Season 4"..."Season 8½" -kaudet saivat
+ * UUDESSA id-avaruudessa isommat id:t kuin myöhemmät "S9"..."S19"
+ * -kaudet) — `response.data.seasons` lajitellaan siis TÄSSÄ uudelleen
+ * `chronologicalSeasonIds`:n indeksin mukaan sen omaan (väärään)
+ * järjestykseen luottamisen sijaan. Kaudet joita `chronologicalSeasonIds`
+ * ei tunne (ei pitäisi käytännössä tapahtua) putoavat loppuun alkuperäisessä
+ * keskinäisessä järjestyksessään, eivät katoa.
+ */
+export function mapDriverCareer(
+	response: RawDriverCareerResponse,
+	chronologicalSeasonIds: number[]
+): DriverCareer {
+	const chronologicalIndex = new Map(chronologicalSeasonIds.map((id, index) => [id, index]));
+	const orderOf = (seasonId: number) => chronologicalIndex.get(Number(seasonId)) ?? Number.MAX_SAFE_INTEGER;
+
+	const orderedSeasons = [...response.data.seasons].sort((a, b) => orderOf(a.seasonId) - orderOf(b.seasonId));
+
 	return {
 		driverId: response.data.driverId,
 		driverName: response.data.driverName,
-		seasons: response.data.seasons.map((season) => ({
+		seasons: orderedSeasons.map((season) => ({
 			seasonId: season.seasonId,
 			seasonName: season.seasonName,
 			races: season.races.map((race, index) => mapDriverCareerRace(race, index)),
