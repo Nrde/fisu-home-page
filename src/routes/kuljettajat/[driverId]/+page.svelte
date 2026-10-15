@@ -63,7 +63,7 @@
 					<a href="/kaudet/{season.seasonId}" class="link">Koko kausi →</a>
 				</div>
 				<div class="season-block__races">
-					{#each season.races as race (race.raceId)}
+					{#each season.races as race (race.rowKey)}
 						<a class="race-row-link" href="/kaudet/{season.seasonId}/kilpailut/{race.raceId}">
 							<DriverRaceRow
 								raceName={race.raceName}

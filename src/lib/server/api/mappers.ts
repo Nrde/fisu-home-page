@@ -1231,6 +1231,23 @@ export interface DriverCareerRace {
 	 * väärin koko kisan voitoksi kun se oli vain oman splitin voitto.
 	 */
 	split: number | null;
+	/**
+	 * LISÄTTY 15.10.2026, käyttäjän raportti ("each_key_duplicate" kaatoi
+	 * koko kuljettajasivun, esim. /kuljettajat/190): `raceId` EI ole
+	 * yksilöllinen avain tämän listan `{#each}`:lle, koska kahden (tai
+	 * useamman) splitin kisat tuottavat TÄLLÄ endpointilla kaksi omaa
+	 * riviä SAMALLA `raceId`:llä (yksi per split, esim. driverId 190:n
+	 * S9-kaudella raceId 219 kahdesti). Sama juurisyy kuin 10.10.2026
+	 * korjatussa kisatulossivun bugissa (ks. CLAUDE.md:n korjausloki) —
+	 * `split` EI riitä erottimeksi tälläkään endpointilla, koska se voi
+	 * olla `null` MOLEMMISSA riveissä. Kisatulossivulla ratkaisu oli uusi
+	 * `sessionOrder`-kenttä API:sta; tällä endpointilla sellaista ei ole,
+	 * mutta tämän sivun `{#each}` ei TARVITSE API-tason ratkaisua — se ei
+	 * ryhmittele eikä laske ties:ejä `split`:in perusteella niin kuin
+	 * kisatulossivu, se VAIN listaa rivit — riittää siis mapperin oma,
+	 * taatusti yksilöllinen `season.races`-taulukon indeksi avaimeksi.
+	 */
+	rowKey: number;
 }
 
 /** Sama kenttäjoukko kausi- ja urakohtaisille tilastoille, ks. RawDriverCareerStats-kommentti types.ts:ssä. `null`-arvot muunnetaan `undefined`:ksi komponenttien props-rajapinnan mukaisesti. */
@@ -1275,7 +1292,7 @@ function mapDriverCareerStats(raw: RawDriverCareerStats): DriverCareerStatsBlock
 	};
 }
 
-function mapDriverCareerRace(raw: RawDriverCareerRace): DriverCareerRace {
+function mapDriverCareerRace(raw: RawDriverCareerRace, rowKey: number): DriverCareerRace {
 	const positionChange =
 		raw.startingPosition !== null ? raw.startingPosition - raw.position : undefined;
 
@@ -1292,7 +1309,8 @@ function mapDriverCareerRace(raw: RawDriverCareerRace): DriverCareerRace {
 		pole: raw.pole,
 		fastestLap: raw.fastestLap,
 		dnf: raw.dnf,
-		split: raw.split ?? null
+		split: raw.split ?? null,
+		rowKey
 	};
 }
 
@@ -1303,7 +1321,7 @@ export function mapDriverCareer(response: RawDriverCareerResponse): DriverCareer
 		seasons: response.data.seasons.map((season) => ({
 			seasonId: season.seasonId,
 			seasonName: season.seasonName,
-			races: season.races.map(mapDriverCareerRace),
+			races: season.races.map((race, index) => mapDriverCareerRace(race, index)),
 			stats: mapDriverCareerStats(season.stats)
 		})),
 		careerStats: mapDriverCareerStats(response.data.careerStats)
