@@ -12,13 +12,13 @@
 
 ## 15.10.2026 22:30
 
-- Etusivun otsikon ikuisesti puolittunut "g"-kirjain sai vihdoin koko alamerkkinsä takaisin — riittää, että rivi hengittää hieman enemmän.
+- Etusivun otsikon ikuisesti puolittunut "g"-kirjain sai vihdoin itsensä näkyviin kokonaan — riittää, että rivi hengittää hieman enemmän.
 - Teksti on taas mahdollista valita ja NÄHDÄ että se on valittu — aiemmin valitun pätkän väri hukkui taustaan kuin hyvä naamiomaalaus.
-- Napit ja pienet valitsimet kutistuivat napakammiksi ja saivat pyöreämmät nurkat, jotta ne mahtuvat paremmin myös puhelimen ruudulle.
-- Kauden kisalistalla kisa, jota ei ikinä ajettu, lukee nyt rehellisesti "Ei ajettu" sen sijaan että väittäisi vuosia vanhaa kisaa yhä "Tulevaksi".
+- Napit ja pienet valitsimet kutistuivat ja saivat pyöreämmät nurkat.
+- Kauden kisalistalla kisa, jota ei ikinä ajettu, on nyt "Ei ajettu" sen sijaan että väittäisi vuosia vanhaa kisaa yhä "Tulevaksi".
 - Tilastot-sivulla "1 kisa" ei enää taivu väärin monikkoon, otsikko "Kausien kehitys" vaihtui kuvaavammaksi "Kilpailut ja kuljettajat", ja ratalistan turha sisennys katosi.
 - Jos API pätkii hetkeksi, sivu näyttää nyt OIKEAN virheilmoituksen sen sijaan että huusi aina samaa ympäripyöreää "500 Internal Error" -viestiä riippumatta siitä mikä oikeasti meni pieleen.
-- Kuljettajasivu ei enää kaadu, jos kuljettaja on ajanut kahden lähdön tai splitin kisan (kiitos, Panu Artimo, ettet antanut asian unohtua) — ja kuljettajan kaudet listautuvat vihdoin oikeassa aikajärjestyksessä alusta loppuun, eivät sekaisin taustajärjestelmän id-numeroiden mukaan.
+- Kuljettajan ajamat kaudet näkyvät nyt uusimmasta vanhimpaan, ei puolisekaisessa järjestyksessä.
 
 ## 11.10.2026 15:30
 
