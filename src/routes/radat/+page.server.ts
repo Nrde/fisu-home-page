@@ -9,6 +9,7 @@
  * RINNAN ratalistan kanssa, sama periaate kuin autot/+page.server.ts:ssä
  * — "parasta yritystä" -lisätieto, ei kaada sivua jos epäonnistuu.
  */
+import { error } from '@sveltejs/kit';
 import { ApiError, fetchTrackReviewList, fetchTracks } from '#lib/server/api/client.ts';
 import { mapReviewList, mapTracks, type ReviewSummary } from '#lib/server/api/mappers.ts';
 import type { PageServerLoad } from './$types';
@@ -25,8 +26,11 @@ export const load: PageServerLoad = async ({ fetch }) => {
 		}
 
 		return { tracks, reviewsByTrackId: Object.fromEntries(reviewsByTrackId) };
-	} catch (error) {
-		if (error instanceof ApiError) throw error;
-		throw new ApiError(`Odottamaton virhe /tracks-haussa: ${String(error)}`);
+	} catch (err) {
+		// KORJAUS 15.10.2026: ks. `/+page.server.ts`:n kommentti — `ApiError`
+		// pitää kääriä SvelteKitin `error()`-apuriin, muuten se näkyy aina
+		// geneerisenä 500:na oikean statuksen sijaan.
+		if (err instanceof ApiError) throw error(err.status ?? 500, err.message);
+		throw error(500, `Odottamaton virhe /tracks-haussa: ${String(err)}`);
 	}
 };

@@ -26,6 +26,7 @@
  * purkaa KOKO vastauksen (`intro` + `data`) yhdellä kertaa, ei enää
  * `mapHallOfFameList`:ä suoraan.
  */
+import { error } from '@sveltejs/kit';
 import { ApiError, fetchHallOfFame } from '#lib/server/api/client.ts';
 import { mapHallOfFame, type HallOfFamePage } from '#lib/server/api/mappers.ts';
 
@@ -36,8 +37,11 @@ export const load = async ({ fetch }: { fetch: typeof globalThis.fetch }) => {
 		const response = await fetchHallOfFame(fetch, ORGANISER);
 		const page: HallOfFamePage = mapHallOfFame(response);
 		return { ...page };
-	} catch (error) {
-		if (error instanceof ApiError) throw error;
-		throw new ApiError(`Odottamaton virhe Hall of Fame -listan haussa: ${String(error)}`);
+	} catch (err) {
+		// KORJAUS 15.10.2026: ks. `/+page.server.ts`:n kommentti — `ApiError`
+		// pitää kääriä SvelteKitin `error()`-apuriin, muuten se näkyy aina
+		// geneerisenä 500:na oikean statuksen sijaan.
+		if (err instanceof ApiError) throw error(err.status ?? 500, err.message);
+		throw error(500, `Odottamaton virhe Hall of Fame -listan haussa: ${String(err)}`);
 	}
 };

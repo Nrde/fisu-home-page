@@ -16,6 +16,7 @@
  * MIKÄ TAHANSA osa epäonnistuu, virhe heitetään eteenpäin (ei
  * esimerkkidataa — mock-fallback poistettu 22.9.2026 käyttäjän pyynnöstä).
  */
+import { error } from '@sveltejs/kit';
 import {
 	ApiError,
 	fetchCurrentSeason,
@@ -107,8 +108,15 @@ export const load: PageServerLoad = async ({ fetch }) => {
 			upcomingRace,
 			latestRaceResult
 		};
-	} catch (error) {
-		if (error instanceof ApiError) throw error;
-		throw new ApiError(`Odottamaton virhe etusivun datan haussa: ${String(error)}`);
+	} catch (err) {
+		// HUOM (korjattu 15.10.2026, käyttäjän raportti "driver 500 error"-
+		// selvityksen sivutuote): `ApiError` on OMA luokkamme, ei SvelteKitin
+		// `error()`-apurilla luotu `HttpError` — SvelteKit tunnistaa VAIN
+		// jälkimmäisen oikean HTTP-statuksen antamiseen, pelkkä `throw
+		// err` jätti SIKSI AINA geneerisen "500 Internal Error" -sivun
+		// näkyviin ApiErrorin omasta `.status`-kentästä riippumatta, mikä
+		// piilotti todellisen virheen (esim. backendin 404/503) käyttäjältä.
+		if (err instanceof ApiError) throw error(err.status ?? 500, err.message);
+		throw error(500, `Odottamaton virhe etusivun datan haussa: ${String(err)}`);
 	}
 };

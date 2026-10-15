@@ -123,7 +123,10 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 		// koska myös `ApiError` kantaa julkista `status`-kenttää — se
 		// pitää siis sulkea pois erikseen.
 		if (!(err instanceof ApiError) && err && typeof err === 'object' && 'status' in err) throw err;
-		if (err instanceof ApiError) throw err;
-		throw new ApiError(`Odottamaton virhe radan haussa: ${String(err)}`);
+		// KORJAUS 15.10.2026: ks. `/+page.server.ts`:n kommentti — `ApiError`
+		// pitää kääriä SvelteKitin `error()`-apuriin, muuten se näkyy aina
+		// geneerisenä 500:na oikean statuksen sijaan.
+		if (err instanceof ApiError) throw error(err.status ?? 500, err.message);
+		throw error(500, `Odottamaton virhe radan haussa: ${String(err)}`);
 	}
 };

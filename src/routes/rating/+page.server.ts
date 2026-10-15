@@ -6,6 +6,7 @@
  * -kaavioon (RaceChart.svelte) ETTÄ tavalliseen nykyisen sijoituksen
  * listaan (viimeisimmän framen `standings`) — ei kahta erillistä hakua.
  */
+import { error } from '@sveltejs/kit';
 import { ApiError, fetchRaceChartData } from '#lib/server/api/client.ts';
 import { mapRaceChartData } from '#lib/server/api/mappers.ts';
 import type { PageServerLoad } from './$types';
@@ -15,7 +16,10 @@ export const load: PageServerLoad = async ({ fetch }) => {
 		const raceChart = mapRaceChartData(await fetchRaceChartData(fetch));
 		return { raceChart };
 	} catch (err) {
-		if (err instanceof ApiError) throw err;
-		throw new ApiError(`Odottamaton virhe rating datan haussa: ${String(err)}`);
+		// KORJAUS 15.10.2026: ks. `/+page.server.ts`:n kommentti — `ApiError`
+		// pitää kääriä SvelteKitin `error()`-apuriin, muuten se näkyy aina
+		// geneerisenä 500:na oikean statuksen sijaan.
+		if (err instanceof ApiError) throw error(err.status ?? 500, err.message);
+		throw error(500, `Odottamaton virhe rating datan haussa: ${String(err)}`);
 	}
 };

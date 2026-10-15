@@ -9,6 +9,7 @@
  * RINNAN myös `/tracks` ja yhdistetään ne `mapTrackUsage`:ssa —
  * kaksi kutsua yhdessä `Promise.all`:ssa, ei peräkkäin.
  */
+import { error } from '@sveltejs/kit';
 import { ApiError, fetchStatsComplete, fetchTracks } from '#lib/server/api/client.ts';
 import { mapCommunityLeaderboards, mapSeasonTrends, mapTrackUsage, mapTracks } from '#lib/server/api/mappers.ts';
 import type { PageServerLoad } from './$types';
@@ -26,8 +27,11 @@ export const load: PageServerLoad = async ({ fetch }) => {
 			racesWithUnknownTrack: stats.trackStats.racesWithUnknownTrack,
 			seasonTrends: mapSeasonTrends(stats)
 		};
-	} catch (error) {
-		if (error instanceof ApiError) throw error;
-		throw new ApiError(`Odottamaton virhe tilastojen haussa: ${String(error)}`);
+	} catch (err) {
+		// KORJAUS 15.10.2026: `ApiError` pitää kääriä SvelteKitin omaan
+		// `error()`-apuriin, muuten se näkyy aina geneerisenä 500:na oikean
+		// statuksen sijaan — ks. `/+page.server.ts`:n kommentti samasta bugista.
+		if (err instanceof ApiError) throw error(err.status ?? 500, err.message);
+		throw error(500, `Odottamaton virhe tilastojen haussa: ${String(err)}`);
 	}
 };

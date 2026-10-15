@@ -14,6 +14,7 @@
  * epäonnistuu, autolista näytetään silti ilman badgeja sen sijaan että
  * koko sivu kaatuisi.
  */
+import { error } from '@sveltejs/kit';
 import { ApiError, fetchCarDictionary, fetchCarReviewList } from '#lib/server/api/client.ts';
 import { mapCars, mapReviewList, type ReviewSummary } from '#lib/server/api/mappers.ts';
 import type { PageServerLoad } from './$types';
@@ -33,8 +34,11 @@ export const load: PageServerLoad = async ({ fetch }) => {
 			cars: [...cars].sort((a, b) => a.name.localeCompare(b.name, 'fi')),
 			reviewsByCarId: Object.fromEntries(reviewsByCarId)
 		};
-	} catch (error) {
-		if (error instanceof ApiError) throw error;
-		throw new ApiError(`Odottamaton virhe /cars-haussa: ${String(error)}`);
+	} catch (err) {
+		// KORJAUS 15.10.2026: ks. `/+page.server.ts`:n kommentti — `ApiError`
+		// pitää kääriä SvelteKitin `error()`-apuriin, muuten se näkyy aina
+		// geneerisenä 500:na oikean statuksen sijaan.
+		if (err instanceof ApiError) throw error(err.status ?? 500, err.message);
+		throw error(500, `Odottamaton virhe /cars-haussa: ${String(err)}`);
 	}
 };

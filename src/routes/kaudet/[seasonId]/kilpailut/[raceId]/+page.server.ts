@@ -23,6 +23,7 @@
  * numero, molemmat autohaut ohitetaan hiljaisesti eikä kaadeta koko sivua
  * sen takia, koska autotieto on tällä sivulla lisätietoa, ei pääsisältöä.
  */
+import { error } from '@sveltejs/kit';
 import {
 	ApiError,
 	fetchOrganiserSummary,
@@ -51,7 +52,7 @@ const EMPTY_RACE_CAR_RESOLUTION: RaceCarResolution = { byDriverId: new Map() };
 export const load: PageServerLoad = async ({ params, fetch }) => {
 	const raceId = Number(params.raceId);
 	if (!Number.isFinite(raceId)) {
-		throw new ApiError(`"${params.raceId}" ei ole kelvollinen kilpailun tunniste.`);
+		throw error(404, `"${params.raceId}" ei ole kelvollinen kilpailun tunniste.`);
 	}
 
 	try {
@@ -83,7 +84,10 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 
 		return { result, seasonId: params.seasonId, cars: raceCars.length > 0 ? raceCars : seasonPool };
 	} catch (err) {
-		if (err instanceof ApiError) throw err;
-		throw new ApiError(`Odottamaton virhe kisatulosten haussa: ${String(err)}`);
+		// KORJAUS 15.10.2026: ks. `/+page.server.ts`:n kommentti — `ApiError`
+		// pitää kääriä SvelteKitin `error()`-apuriin, muuten se näkyy aina
+		// geneerisenä 500:na oikean statuksen sijaan.
+		if (err instanceof ApiError) throw error(err.status ?? 500, err.message);
+		throw error(500, `Odottamaton virhe kisatulosten haussa: ${String(err)}`);
 	}
 };

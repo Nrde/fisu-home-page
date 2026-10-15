@@ -12,6 +12,7 @@
  * isOver`:in kommentti mappers.ts:ssä. Rinnakkainen kutsu, ei lisää
  * kokonaislatausaikaa merkittävästi.
  */
+import { error } from '@sveltejs/kit';
 import { ApiError, fetchCurrentSeason, fetchOrganiserSummary } from '#lib/server/api/client.ts';
 import { mapSeasonList } from '#lib/server/api/mappers.ts';
 import type { PageServerLoad } from './$types';
@@ -31,8 +32,11 @@ export const load: PageServerLoad = async ({ fetch }) => {
 		// `seasonId` on numero.
 		const ongoingSeasonId = currentSeasonInfo.data ? Number(currentSeasonInfo.data.id) : undefined;
 		return { seasons: mapSeasonList(summary, ongoingSeasonId) };
-	} catch (error) {
-		if (error instanceof ApiError) throw error;
-		throw new ApiError(`Odottamaton virhe kausilistan haussa: ${String(error)}`);
+	} catch (err) {
+		// KORJAUS 15.10.2026: ks. `/+page.server.ts`:n kommentti — `ApiError`
+		// pitää kääriä SvelteKitin `error()`-apuriin, muuten se näkyy aina
+		// geneerisenä 500:na oikean statuksen sijaan.
+		if (err instanceof ApiError) throw error(err.status ?? 500, err.message);
+		throw error(500, `Odottamaton virhe kausilistan haussa: ${String(err)}`);
 	}
 };

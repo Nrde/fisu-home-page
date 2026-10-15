@@ -19,7 +19,14 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 		const career = mapDriverCareer(await fetchDriverCareer(fetch, ORGANISER, driverId));
 		return { career };
 	} catch (err) {
-		if (err instanceof ApiError) throw err;
-		throw new ApiError(`Odottamaton virhe kuljettajan uran haussa: ${String(err)}`);
+		// KORJAUS 15.10.2026 (käyttäjän raportti: kaikki kuljettajasivut
+		// päätyivät 500:aan): `ApiError` on OMA luokkamme, ei SvelteKitin
+		// `error()`-apurilla luotu `HttpError` — SvelteKit tunnistaa VAIN
+		// jälkimmäisen oikean HTTP-statuksen antamiseen, pelkkä `throw err`
+		// näytti SIKSI AINA geneerisen "500 Internal Error" -sivun ApiErrorin
+		// omasta `.status`-kentästä riippumatta, mikä piilotti todellisen
+		// virheen (esim. backendin tilapäinen 503/404) käyttäjältä.
+		if (err instanceof ApiError) throw error(err.status ?? 500, err.message);
+		throw error(500, `Odottamaton virhe kuljettajan uran haussa: ${String(err)}`);
 	}
 };
