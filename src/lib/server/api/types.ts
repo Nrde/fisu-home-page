@@ -483,8 +483,37 @@ export interface RawDriverCareerRace {
 	pole: boolean;
 	fastestLap: boolean;
 	dnf: boolean;
-	/** LISÄTTY 2026-09-27 — sama merkitys kuin `RawRaceResultDriver.split`:ssä, ks. sen kommentti. */
-	split: number | null;
+	/**
+	 * BREAKING CHANGE 16.10.2026 (API-tiimin oma ilmoitus "UI-tiimille"):
+	 * vanha `split`-kenttä (`splitNumber ?? startNumber`) POISTETTU, tilalle
+	 * KAKSI omaa kenttää — SAMA muoto kuin `/results/race/{roundId}`:n
+	 * `RawRaceSession`:lla on käyttänyt jo aiemmin. Syy (API-tiimin oma
+	 * selitys): yhdellä round-id:llä voi olla USEITA lähtöjä SAMAN splitin
+	 * sisällä (vahvistettu kaudella 1, roundId 219–223) — vanha yhdistetty
+	 * `split`-kenttä ei erottanut näitä, molemmat rivit näyttivät SAMAN
+	 * split-arvon vaikka olivat kaksi ERI kisaa. Tämä oli SUORAAN se
+	 * juurisyy joka aiheutti 15.10.2026 korjatun `each_key_duplicate`-
+	 * kaatumisen `/kuljettajat/[driverId]`-sivulla (ks. mappers.ts:n
+	 * `mapDriverCareerRace`/`rowKey`-kommentti) — `rowKey` (taulukkoindeksi)
+	 * jätetty KÄYTTÖÖN silti ensisijaisena avaimena tälle riippumatta tästä
+	 * korjauksesta, API-tiimin oma suositus: ei luoteta `raceId` +
+	 * split/start-tietoon yksilöllisyyden takeena jatkossakaan.
+	 *
+	 * HUOM (todettu KÄSIN suoralla API-kutsulla 15.10.2026, PÄIVÄÄ ENNEN
+	 * ilmoitettua muutospäivää): tuotannon vastaus antaa TÄLLÄ HETKELLÄ
+	 * VIELÄ vanhan `split`-kentän (esim. driverId 190: `split: 2`), EI
+	 * näitä uusia kenttiä — ilmoitus oli siis ETUKÄTEISVAROITUS tulevasta
+	 * muutoksesta, ei kuvaus siitä mikä on JO livenä. Molemmat uudet kentät
+	 * (ja vanha `split` alla) ovat SIKSI optional/widenoitu — mapperin
+	 * `mapDriverCareerRace` lukee `splitNumber`/`startNumber`:ia ENSISIJAISESTI
+	 * jos niitä ILMESTYY, mutta putoaa vanhaan `split`:iin jos ei (ks. sen
+	 * kommentti) — kumpikaan koodimuutos (tämä TAI vanhan kentän poisto)
+	 * ei siis kaada sivua riippumatta KUMPI API-versio sattuu vastaamaan.
+	 */
+	splitNumber?: number | null;
+	startNumber?: number | null;
+	/** LEGACY — poistuu API:sta 16.10.2026 ilmoituksen mukaan, pidetään toissijaisena fallbackina kunnes poisto on vahvistetusti livenä (ks. yllä oleva HUOM). */
+	split?: number | null;
 }
 
 /** Sama kenttäjoukko sekä kausikohtaisessa (`RawDriverCareerSeason.stats`) että urakohtaisessa (`RawDriverCareerResponse.data.careerStats`) tilastossa. */

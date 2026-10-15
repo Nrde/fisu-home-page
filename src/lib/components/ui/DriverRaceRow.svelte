@@ -20,7 +20,7 @@
 		points,
 		gapDisplay,
 		positionChange,
-		split = null,
+		splitLabel = null,
 		win = false,
 		podium = false,
 		pole = false,
@@ -33,15 +33,20 @@
 		gapDisplay?: string;
 		positionChange?: number;
 		/**
-		 * Taitotasosplitti jonka kuljettaja ajoi tässä kisassa — UUSI
-		 * 27.9.2026, ks. mappers.ts:n `DriverCareerRace.split`-kommentti.
-		 * `null` (oletus) normaalilla kisalla, ei näytetä tällöin mitään.
-		 * Ei vaikuta rivien järjestykseen tällä sivulla (kuljettajan omat
-		 * kisat näytetään aina aikajärjestyksessä) — pelkkä läpinäkyvyys:
-		 * kertoo ettei "P1" tarkoita koko kentän voittoa jos kisa oli
-		 * jaettu splitteihin.
+		 * Taitotasosplitti (tai usean peräkkäisen lähdön tunniste) jonka
+		 * kuljettaja ajoi tässä kisassa — UUSI 27.9.2026, PÄIVITETTY
+		 * 16.10.2026 (API-tiimin breaking change: `split`-numero korvautui
+		 * `splitNumber`/`startNumber`-parilla, ks. mappers.ts:n
+		 * `mapDriverCareerRace`-kommentti) — valmiiksi muotoiltu
+		 * näyttömerkkijono, EI enää raaka numero, koska lähde on nyt
+		 * kahden eri kentän fallback-yhdistelmä. `null` (oletus) normaalilla
+		 * kisalla, ei näytetä tällöin mitään. Ei vaikuta rivien
+		 * järjestykseen tällä sivulla (kuljettajan omat kisat näytetään
+		 * aina aikajärjestyksessä) — pelkkä läpinäkyvyys: kertoo ettei "P1"
+		 * tarkoita koko kentän voittoa jos kisa oli jaettu splitteihin/
+		 * lähtöihin.
 		 */
-		split?: number | null;
+		splitLabel?: string | null;
 		win?: boolean;
 		podium?: boolean;
 		pole?: boolean;
@@ -102,8 +107,8 @@
 		{/if}
 	{/snippet}
 	{#snippet extra()}
-		{#if split !== null}
-			Split {split}
+		{#if splitLabel !== null}
+			{splitLabel}
 		{/if}
 	{/snippet}
 </ListRow>

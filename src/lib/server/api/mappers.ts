@@ -1223,29 +1223,33 @@ export interface DriverCareerRace {
 	fastestLap: boolean;
 	dnf: boolean;
 	/**
-	 * LISÄTTY 27.9.2026 — sama merkitys kuin `RaceResultEntry.split`:ssä.
-	 * Tällä sivulla EI vaikuta järjestykseen (yhden kuljettajan omat kisat
-	 * näytetään aina aikajärjestyksessä, ei kilpasijoituksena muihin
-	 * verrattuna) — vain kertoo että TÄMÄN kisan `position`/`points` olivat
-	 * splitin sisäisiä, ei koko kentän, jottei kukaan tulkitse "P1":tä
-	 * väärin koko kisan voitoksi kun se oli vain oman splitin voitto.
+	 * PÄIVITETTY 16.10.2026 (API-tiimin "breaking change" -ilmoitus): oli
+	 * aiemmin raaka `split: number | null`, LASKETTU TÄSSÄ valmiiksi
+	 * näytettäväksi merkkijonoksi koska raaka API ei tätä endpointtia
+	 * varten tarjoa valmista `label`:ia (toisin kuin `/results/race/
+	 * {roundId}`:n `RawRaceSession.label`, ks. sen kommentti types.ts:ssä)
+	 * — ks. `mapDriverCareerRace`:n kommentti tarkasta fallback-järjestyksestä
+	 * (`splitNumber` ensin, sitten `startNumber`). `null` normaalilla
+	 * kisalla, ei näytetä tällöin mitään (sama käytös kuin ennenkin).
 	 */
-	split: number | null;
+	splitLabel: string | null;
 	/**
 	 * LISÄTTY 15.10.2026, käyttäjän raportti ("each_key_duplicate" kaatoi
 	 * koko kuljettajasivun, esim. /kuljettajat/190): `raceId` EI ole
 	 * yksilöllinen avain tämän listan `{#each}`:lle, koska kahden (tai
-	 * useamman) splitin kisat tuottavat TÄLLÄ endpointilla kaksi omaa
-	 * riviä SAMALLA `raceId`:llä (yksi per split, esim. driverId 190:n
-	 * S9-kaudella raceId 219 kahdesti). Sama juurisyy kuin 10.10.2026
-	 * korjatussa kisatulossivun bugissa (ks. CLAUDE.md:n korjausloki) —
-	 * `split` EI riitä erottimeksi tälläkään endpointilla, koska se voi
-	 * olla `null` MOLEMMISSA riveissä. Kisatulossivulla ratkaisu oli uusi
-	 * `sessionOrder`-kenttä API:sta; tällä endpointilla sellaista ei ole,
-	 * mutta tämän sivun `{#each}` ei TARVITSE API-tason ratkaisua — se ei
-	 * ryhmittele eikä laske ties:ejä `split`:in perusteella niin kuin
-	 * kisatulossivu, se VAIN listaa rivit — riittää siis mapperin oma,
-	 * taatusti yksilöllinen `season.races`-taulukon indeksi avaimeksi.
+	 * useamman) splitin/lähdön kisat tuottavat TÄLLÄ endpointilla kaksi
+	 * omaa riviä SAMALLA `raceId`:llä (esim. driverId 190:n S9-kaudella
+	 * raceId 219 kahdesti). Sama juurisyy kuin 10.10.2026 korjatussa
+	 * kisatulossivun bugissa (ks. CLAUDE.md:n korjausloki) — PÄIVITYS
+	 * 16.10.2026: API-tiimi vahvisti juurisyyn ja korjasi sen OMALTA
+	 * puoleltaan uudella `splitNumber`/`startNumber`-kenttäparilla (ks.
+	 * types.ts:n `RawDriverCareerRace`-kommentti), MUTTA tämän sivun
+	 * `{#each}` ei silti tarvitse API-tason ratkaisua ensisijaiseksi
+	 * avaimeksi — se ei ryhmittele eikä laske ties:ejä näiden perusteella
+	 * niin kuin kisatulossivu, se VAIN listaa rivit — mapperin oma,
+	 * taatusti yksilöllinen `season.races`-taulukon indeksi riittää
+	 * edelleen avaimeksi, API-tiimin omaa suositusta noudattaen ("ei
+	 * luoteta raceId+split/start-tietoon yksilöllisyyden takeena").
 	 */
 	rowKey: number;
 }
@@ -1296,6 +1300,37 @@ function mapDriverCareerRace(raw: RawDriverCareerRace, rowKey: number): DriverCa
 	const positionChange =
 		raw.startingPosition !== null ? raw.startingPosition - raw.position : undefined;
 
+	// PÄIVITETTY 16.10.2026 (käyttäjän selitys taitotaso/lähtö-mallista,
+	// ks. RawDriverCareerRace-kommentti types.ts:ssä): `splitNumber` JA
+	// `startNumber` EIVÄT ole toisensa poissulkevia vaihtoehtoja, kuten
+	// ensimmäinen versio tästä mapperista oletti — ne kuvaavat ERI
+	// asioita SAMANAIKAISESTI: `splitNumber` on taitotasosplitti (esim.
+	// "Split 2"), `startNumber` on YKSITTÄINEN lähtö SEN splitin sisällä
+	// kun samalla splitillä ajetaan useampi perätäinen lähtö samassa
+	// round/event-kisassa (esim. S9: Legendaa, round 219–223 — Panu
+	// Artimo ajoi splitin 2 molemmat lähdöt). Käyttäjän esimerkki: "Split
+	// 2, Lähtö 1" / "Split 2, Lähtö 2", EI kahta samanlaista "Split 2"-
+	// riviä kuten ennen tätä korjausta. Jos vain toinen on tiedossa,
+	// näytetään VAIN se (tavallinen yhden lähdön splitti TAI splittitön
+	// moniLähtö-kisa) — "Lähtö" on sama Finnish-termi kuin kisatulossivun
+	// `sessionOrder`-fallbackissa (ks. mapRaceResult), "Split" pysyy
+	// englanninkielisenä kuten muuallakin sivustolla. VANHA `split`
+	// NELJÄNTENÄ fallbackina, koska tuotanto antoi sen edelleen
+	// 15.10.2026 käsin tarkistettuna — poistuu tästä ketjusta vasta kun
+	// API:n oma poisto on vahvistetusti livenä, ei ilmoitetun
+	// päivämäärän perusteella. `!= null` (ei `!== null`) kattaa myös
+	// `undefined`:n, koska kaikki nämä kentät ovat optional.
+	const splitLabel =
+		raw.splitNumber != null && raw.startNumber != null
+			? `Split ${raw.splitNumber}, Lähtö ${raw.startNumber}`
+			: raw.splitNumber != null
+				? `Split ${raw.splitNumber}`
+				: raw.startNumber != null
+					? `Lähtö ${raw.startNumber}`
+					: raw.split != null
+						? `Split ${raw.split}`
+						: null;
+
 	return {
 		raceId: raw.raceId,
 		raceName: raw.raceName,
@@ -1309,7 +1344,7 @@ function mapDriverCareerRace(raw: RawDriverCareerRace, rowKey: number): DriverCa
 		pole: raw.pole,
 		fastestLap: raw.fastestLap,
 		dnf: raw.dnf,
-		split: raw.split ?? null,
+		splitLabel,
 		rowKey
 	};
 }
