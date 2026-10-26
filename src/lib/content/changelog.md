@@ -10,6 +10,15 @@
 	  - Yksi rivi per muutoskohta.
 -->
 
+## 27.10.2026 14:20
+
+- Kisasivun otsikko VIE suoraan radan sivulle, ja kauden nimi kauden omalle sivulle, ilman että välissä pitää erikseen klikata "← Takaisin kauteen" -nappia, pikkuhiljaa UI suunnittelu siirtyy 2000 -luvulle
+- "← Kaikki kaudet/autot/radat/kuljettajat" -paluunuolet poistettu kisasivuilta — yläreunan valikko toimii
+- Fontit kasvavat/pienenevät nyt uuden, hipsterimmän `progress()`-CSS-funktion avulla selaimissa jotka sen jaksavat tukea — muille mikään ei muuttunut, koska vanha kunnon `clamp()` odottaa yhä nurkan takana turvaverkkona. Lopputulos näyttää käytännössä identtiseltä, mikä on tavallaan koko operaation hauskin osa. Kiitokset Kevin Powelille, mutta Kevin, laita jatkossa koodi githubiin niin ei tarvitse kopsata ruudulta. 
+- Kierroksen jääneet kuljettajat saavat VIHDOIN lukea "+1 kierros" eron sarakkeessa sen sijaan että rivi jäisi mystisesti tyhjäksi, ikään kuin kuljettaja olisi hiljaa poistunut aika-tila-jatkumosta. Kiitos API:n uudelle `lapsDown`-kentälle — tyhjä sarake oli muuten teknisesti "ei bugi", mutta kukaan ei uskonut sitä.
+- API-tiimi korjasi omalta puoleltaan kauden kilpailujen järjestyksen (nyt oikeasti kisapäivän mukaan, ei arvonta-numeron) ja sen kummallisen kisan jossa KAIKKI maaliin ajaneet kuljettajat oli merkitty keskeyttäneiksi.
+- (Konepellin alla: arvostelusivun API-kutsut päivitetty vastaamaan API:n uutta, yhtenäistä `{success, data}`-kääremuotoa — "arvostelut lakkaavat toimimasta huomenna" -tyyppinen hiljainen katastrofi vältetty etukäteen, ei jälkikäteen.)
+
 ## 15.10.2026 22:30
 
 - Etusivun otsikon ikuisesti puolittunut "g"-kirjain sai vihdoin itsensä näkyviin kokonaan — riittää, että rivi hengittää hieman enemmän.
