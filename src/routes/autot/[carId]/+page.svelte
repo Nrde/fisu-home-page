@@ -77,8 +77,8 @@
 </svelte:head>
 
 <section class="page-grid section">
-	<a href="/autot" class="link back-link">← Kaikki autot</a>
-
+	<!-- Käyttäjän pyyntö 26.10.2026 (TODO.md): "← Kaikki autot" poistettu —
+	     duplikaatti Header-valikon "Autot"-linkin kanssa, ei tarvita erikseen. -->
 	<!--
 		Otsikkolohko — SAMA rakenne kuin radat/[trackid]/+page.svelte:n
 		`.track-heading`:lla (käyttäjän pyyntö 11.10.2026: "make the structure
@@ -209,11 +209,6 @@
 	.section {
 		container-type: inline-size;
 		padding-block: var(--space-12);
-	}
-
-	.back-link {
-		display: inline-block;
-		margin-bottom: var(--space-6);
 	}
 
 	/*

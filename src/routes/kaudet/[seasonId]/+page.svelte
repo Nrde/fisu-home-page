@@ -95,8 +95,8 @@
 </svelte:head>
 
 <section class="page-grid section">
-	<a href="/kaudet" class="link back-link">← Kaikki kaudet</a>
-
+	<!-- Käyttäjän pyyntö 26.10.2026 (TODO.md): "← Kaikki kaudet" poistettu —
+	     duplikaatti Header-valikon "Kaudet"-linkin kanssa, ei tarvita erikseen. -->
 	<h1 class="season-name">{data.season.name}</h1>
 
 	<CarList cars={data.cars} />
@@ -159,11 +159,6 @@
 <style>
 	.section {
 		padding-block: var(--space-12);
-	}
-
-	.back-link {
-		display: inline-block;
-		margin-bottom: var(--space-6);
 	}
 
 	.season-name {

@@ -130,8 +130,8 @@
 </svelte:head>
 
 <section class="page-grid section">
-	<a href="/radat" class="link back-link">← Kaikki radat</a>
-
+	<!-- Käyttäjän pyyntö 26.10.2026 (TODO.md): "← Kaikki radat" poistettu —
+	     duplikaatti Header-valikon "Radat"-linkin kanssa, ei tarvita erikseen. -->
 	<!--
 		Käyttäjän pyyntö 22.9.2026 (kuudes kierros): maalippu nimi+sijainti-
 		rivin oikeaan reunaan, koko lohkon korkuisena (ks. tyylilohkon
@@ -358,11 +358,6 @@
 	.section {
 		container-type: inline-size;
 		padding-block: var(--space-12);
-	}
-
-	.back-link {
-		display: inline-block;
-		margin-bottom: var(--space-6);
 	}
 
 	/*

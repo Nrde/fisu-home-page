@@ -32,8 +32,8 @@
 </svelte:head>
 
 <section class="page-grid section">
-	<a href="/kuljettajat" class="link back-link">← Kaikki kuljettajat</a>
-
+	<!-- Käyttäjän pyyntö 26.10.2026 (TODO.md): "← Kaikki kuljettajat" poistettu —
+	     duplikaatti Header-valikon "Kuljettajat"-linkin kanssa, ei tarvita erikseen. -->
 	<h1 class="driver-name">{data.career.driverName}</h1>
 	{#if stats.averagePosition !== undefined}
 		<p class="driver-average">Keskimääräinen sijoitus {stats.averagePosition.toLocaleString('fi-FI')}</p>
@@ -89,11 +89,6 @@
 <style>
 	.section {
 		padding-block: var(--space-12);
-	}
-
-	.back-link {
-		display: inline-block;
-		margin-bottom: var(--space-6);
 	}
 
 	.driver-name {

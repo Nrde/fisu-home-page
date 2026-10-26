@@ -386,10 +386,14 @@ export interface RaceResultEntry extends WithDisplayPosition {
 	 * Muotoiltu näyttöä varten käyttäjän spekin mukaan (20.9.2026):
 	 * sekunteina saatu ero muutetaan "+M:SS.sss"/"+SS.sss"-muotoon (tai
 	 * "+H:MM:SS.sss" jos yli tunti, käytännössä ei koskaan sim-racingissa),
-	 * kierroksia jääneille "+1 kierros"/"+N kierrosta". `undefined`
-	 * voittajalle (position 1) — API EI anna voittajan kokonaisaikaa,
-	 * vain muiden eron SIIHEN, joten rivi jää tältä osin tyhjäksi
-	 * voittajalle (ei bugi, tiedossa oleva datan rajoitus).
+	 * kierroksia jääneille "+1 kierros"/"+N kierrosta" — TÄMÄ jälkimmäinen
+	 * tapaus toteutui vasta 27.10.2026, kun API-tiimi lisäsi `lapsDown`-
+	 * kentän (ks. types.ts:n `RawRaceSessionResult.lapsDown`-kommentti);
+	 * ennen sitä `gapMs: null` jäi näkymättä kokonaan samalla kierroksella
+	 * jääneille, ks. `normalizeSessionResult`/`formatLapsDownDisplay`.
+	 * `undefined` voittajalle (position 1) — API EI anna voittajan
+	 * kokonaisaikaa, vain muiden eron SIIHEN, joten rivi jää tältä osin
+	 * tyhjäksi voittajalle (ei bugi, tiedossa oleva datan rajoitus).
 	 */
 	gapDisplay?: string;
 	/**
@@ -546,6 +550,18 @@ export function formatGapDisplayMs(raw: string | number | null | undefined): str
 }
 
 /**
+ * UUSI 27.10.2026 — fallback `gapDisplay`:lle kun `gapMs` on `null`
+ * (kuljettaja kierroksen jäljessä, ks. `RawRaceSessionResult.lapsDown`-
+ * kommentti types.ts:ssä). Suomen kielioppi: 1 kierros (yksikkö), 2+
+ * kierrosta (monikko) — sama periaate kuin muualla sivustolla (vrt.
+ * `kuljettajat/[driverId]/+page.svelte`:n `statLabel`).
+ */
+function formatLapsDownDisplay(lapsDown: number | null | undefined): string | undefined {
+	if (lapsDown === null || lapsDown === undefined || lapsDown <= 0) return undefined;
+	return lapsDown === 1 ? '+1 kierros' : `+${lapsDown} kierrosta`;
+}
+
+/**
  * UUSI 9.10.2026 — SAMA periaate kuin `formatGapDisplayMs`, mutta kuljettajan
  * OMALLE parhaalle kierrosajalle (`bestLapMs`), EI "+"-etuliitettä (ei ole
  * ero kärkeen, vaan absoluuttinen aika).
@@ -611,7 +627,9 @@ function normalizeSessionResult(
 		position,
 		name,
 		// Voittajalle (position 1) ei näytetä eroa, ks. RaceResultEntry.gapDisplay-kommentti.
-		gapDisplay: position === 1 ? undefined : formatGapDisplayMs(raw.gapMs),
+		// `?? formatLapsDownDisplay(...)`: UUSI 27.10.2026 — `gapMs` on `null`
+		// kierroksen jääneille, `lapsDown` kattaa sen nyt (ks. kommentti ylempänä).
+		gapDisplay: position === 1 ? undefined : formatGapDisplayMs(raw.gapMs) ?? formatLapsDownDisplay(raw.lapsDown),
 		bestLapTime: formatLapTimeMs(raw.bestLapMs),
 		fastestLap: raw.fastestLap,
 		positionChange: normalizePositionChange(raw),
@@ -1896,20 +1914,26 @@ function translateKnownApiMessage(message: string | undefined): string | undefin
 	return KNOWN_API_MESSAGES[message];
 }
 
+/**
+ * KORJAUS 17.10.2026 (API-tiimin ilmoitus — ks. types.ts:n
+ * `RawReviewLoginResponse`-kommentti): onnistumiskentät luetaan NYT
+ * `raw.data`:n kautta, ei juuritasolta — virhepolku (`raw.message`) EI
+ * muuttunut, se pysyy juuritasolla.
+ */
 export function mapReviewLogin(raw: RawReviewLoginResponse): ReviewLoginResult {
-	if (!raw.success || !raw.token) {
+	if (!raw.success || !raw.data) {
 		return { ok: false, error: translateKnownApiMessage(raw.message) ?? 'Kirjautuminen epäonnistui. Tarkista Steam ID ja salasana.' };
 	}
 
 	return {
 		ok: true,
 		session: {
-			token: raw.token,
-			driverName: raw.name ?? '',
-			cars: raw.cars ?? [],
-			tracks: raw.tracks ?? [],
-			combos: raw.combos ?? [],
-			myReviews: (raw.myReviews ?? []).map((review) => ({
+			token: raw.data.token,
+			driverName: raw.data.name,
+			cars: raw.data.cars,
+			tracks: raw.data.tracks,
+			combos: raw.data.combos,
+			myReviews: raw.data.myReviews.map((review) => ({
 				carId: review.carId,
 				trackId: review.trackId,
 				score: review.score,
@@ -1947,8 +1971,14 @@ function translateFieldError(message: string | undefined): string | undefined {
 	return KNOWN_FIELD_ERROR_MESSAGES[message] ?? message;
 }
 
+/**
+ * KORJAUS 17.10.2026 (API-tiimin ilmoitus — ks. types.ts:n
+ * `RawSubmitReviewResponse`-kommentti): onnistumiskentät luetaan NYT
+ * `raw.data`:n kautta, ei juuritasolta — virhepolku (`raw.message`/
+ * `raw.error`/`raw.errors`) EI muuttunut, se pysyy juuritasolla.
+ */
 export function mapSubmitReview(raw: RawSubmitReviewResponse): SubmitReviewResult {
-	if (!raw.success) {
+	if (!raw.success || !raw.data) {
 		return {
 			ok: false,
 			error:
@@ -1965,10 +1995,10 @@ export function mapSubmitReview(raw: RawSubmitReviewResponse): SubmitReviewResul
 
 	return {
 		ok: true,
-		carId: raw.carId ?? null,
-		trackId: raw.trackId ?? null,
-		score: raw.score ?? 0,
-		note: raw.note ?? undefined
+		carId: raw.data.carId,
+		trackId: raw.data.trackId,
+		score: raw.data.score,
+		note: raw.data.note ?? undefined
 	};
 }
 
@@ -2041,11 +2071,12 @@ export interface TrackCarReviewEntry {
 }
 
 /** `/reviews/track/{trackId}/cars` — radan tarkennussivun "parhaat autot täällä" -listaa varten. */
+/** KORJAUS 17.10.2026 (API-tiimin oma uudelleennimeäminen — ks. types.ts:n `RawTrackCarReviewsResponse`-kommentti): `raw.data` -> `raw.cars`. */
 export function mapTrackCarReviews(raw: RawTrackCarReviewsResponse): TrackCarReviewEntry[] {
-	return raw.data
+	return raw.cars
 		.filter((entry): entry is RawReviewListEntryWithCarId => entry.carId !== undefined)
 		.map((entry) => ({ carId: entry.carId, summary: mapReviewSummary(entry) }));
 }
 
 /** Apu-tyyppi `mapTrackCarReviews`:n suodatukselle — sama rivi kuin `RawReviewListEntry`, mutta `carId` on TÄSSÄ taattu läsnäolevaksi suodatuksen jälkeen. */
-type RawReviewListEntryWithCarId = RawTrackCarReviewsResponse['data'][number] & { carId: number };
+type RawReviewListEntryWithCarId = RawTrackCarReviewsResponse['cars'][number] & { carId: number };

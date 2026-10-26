@@ -414,19 +414,26 @@ export function postReview(
 	});
 }
 
-/** `GET /reviews/car/{carId}` — julkinen, ei kirjautumista. */
+/**
+ * `GET /reviews/car/{carId}` — julkinen, ei kirjautumista.
+ * KORJAUS 17.10.2026 (API-tiimin ilmoitus, ks. types.ts:n
+ * `RawReviewTargetResponse`-kommentti): tämä oli vahingossa `apiFetch`illa
+ * eikä `apiFetchEnvelope`:lla, koska vastaus OLI (virheellisesti)
+ * juuritasolla — nyt kun API-tiimi korjasi sen OMAN kääre-bugin,
+ * `apiFetchEnvelope` on OIKEA valinta, sama kuin muuallakin sivustolla.
+ */
 export function fetchCarReviews(fetchFn: typeof fetch, carId: number) {
-	return apiFetch<RawReviewTargetResponse>(fetchFn, `/reviews/car/${carId}`);
+	return apiFetchEnvelope<RawReviewTargetResponse>(fetchFn, `/reviews/car/${carId}`);
 }
 
-/** `GET /reviews/track/{trackId}` — julkinen, ei kirjautumista. */
+/** `GET /reviews/track/{trackId}` — julkinen, ei kirjautumista. Ks. `fetchCarReviews`:n 17.10.2026-kommentti. */
 export function fetchTrackReviews(fetchFn: typeof fetch, trackId: string) {
-	return apiFetch<RawReviewTargetResponse>(fetchFn, `/reviews/track/${trackId}`);
+	return apiFetchEnvelope<RawReviewTargetResponse>(fetchFn, `/reviews/track/${trackId}`);
 }
 
-/** `GET /reviews/combo/{carId}/{trackId}` — julkinen, ei kirjautumista. */
+/** `GET /reviews/combo/{carId}/{trackId}` — julkinen, ei kirjautumista. Ks. `fetchCarReviews`:n 17.10.2026-kommentti. */
 export function fetchComboReviews(fetchFn: typeof fetch, carId: number, trackId: string) {
-	return apiFetch<RawReviewTargetResponse>(fetchFn, `/reviews/combo/${carId}/${trackId}`);
+	return apiFetchEnvelope<RawReviewTargetResponse>(fetchFn, `/reviews/combo/${carId}/${trackId}`);
 }
 
 /** `GET /reviews/cars` — listasivun arvostelut kerralla, VAIN arvostellut autot (ks. types.ts). */
@@ -439,7 +446,7 @@ export function fetchTrackReviewList(fetchFn: typeof fetch) {
 	return apiFetch<RawReviewListResponse>(fetchFn, `/reviews/tracks`);
 }
 
-/** `GET /reviews/track/{trackId}/cars` — radalla arvosteltujen autojen yhdistelmäpisteet. */
+/** `GET /reviews/track/{trackId}/cars` — radalla arvosteltujen autojen yhdistelmäpisteet. Ks. `fetchCarReviews`:n 17.10.2026-kommentti (sama kääre-korjaus). */
 export function fetchTrackCarReviews(fetchFn: typeof fetch, trackId: string) {
-	return apiFetch<RawTrackCarReviewsResponse>(fetchFn, `/reviews/track/${trackId}/cars`);
+	return apiFetchEnvelope<RawTrackCarReviewsResponse>(fetchFn, `/reviews/track/${trackId}/cars`);
 }

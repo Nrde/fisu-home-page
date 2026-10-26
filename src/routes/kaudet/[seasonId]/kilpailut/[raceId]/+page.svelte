@@ -93,22 +93,28 @@
 </svelte:head>
 
 <section class="page-grid section">
-	<a href="/kaudet/{data.seasonId}" class="link back-link">← Takaisin kauteen</a>
-
-	<h1 class="race-name">{data.result.trackName}</h1>
-	<p class="race-season">{data.result.seasonName}</p>
 	<!--
-		Käyttäjän pyyntö 5.10.2026: linkki kisasivulta vastaavalle rata-
-		sivulle — `LatestRaceResult.trackId` oli jo olemassa mappers.ts:ssä
-		juuri tätä varten (ks. sen kommentti "käytetään mm. kisasivun
-		'Rataprofiili'-linkkiin"), vain itse linkki puuttui tältä sivulta.
-		`trackId` on optionaalinen (vanhemmat kisat, joilla ei ole API:n
-		antamaa trackId:tä, ks. mapLatestRaceResult) — linkki piilotetaan
-		kokonaan sellaisilla, ei näytetä rikkinäistä linkkiä.
+		KORJAUS 26.10.2026 (käyttäjän palaute, TODO.md: "en haluaisi
+		erillisiä linkkejä lainkaan" — esim. kisasivun otsikko veisi
+		SUORAAN radan sivulle): aiemmin tällä sivulla oli KOLME erillistä
+		linkkiriviä ("← Takaisin kauteen", otsikko, kauden nimi, "Radan
+		sivulle →") — pelkistetty niin että navigointi on OSA olemassa
+		olevaa sisältöä, ei lisättyjä rivejä: kauden nimi (linkki kauteen)
+		NYT ENNEN otsikkoa (TODO.md:n toinen pyyntö, "kausi ennen radan
+		nimeä"), ja itse otsikko on linkki radan sivulle `trackId`:n
+		ollessa tiedossa. `trackId` on optionaalinen (vanhemmat kisat,
+		joilla ei ole API:n antamaa trackId:tä, ks. mapLatestRaceResult)
+		— ilman sitä otsikko on tavallinen, ei-linkitetty teksti.
 	-->
-	{#if data.result.trackId}
-		<a href="/radat/{data.result.trackId}" class="link track-link">Radan sivulle →</a>
-	{/if}
+	<a href="/kaudet/{data.seasonId}" class="season-link">{data.result.seasonName}</a>
+
+	<h1 class="race-name">
+		{#if data.result.trackId}
+			<a href="/radat/{data.result.trackId}" class="race-name-link">{data.result.trackName}</a>
+		{:else}
+			{data.result.trackName}
+		{/if}
+	</h1>
 
 	<CarList cars={data.cars} />
 
@@ -175,28 +181,42 @@
 		padding-block: var(--space-12);
 	}
 
-	.back-link {
+	/*
+	 * Kauden nimi — linkki kauteen, EI alleviivausta levossa (vrt.
+	 * `.link`:in aina-näkyvä alleviivaus, joka sopii proosalinkkeihin
+	 * mutta olisi liikaa näin lyhyelle, otsikkomaiselle tekstille) —
+	 * käyttäjän pyyntö 26.10.2026: "huomaamaton" levossa, "tyylikäs"
+	 * hoverissa. Pelkkä värin kirkastus riittää palautteeksi.
+	 */
+	.season-link {
 		display: inline-block;
-		margin-bottom: var(--space-6);
+		margin-bottom: var(--space-1);
+		color: var(--color-text-muted);
+		font-weight: 600;
+		text-decoration: none;
+		transition: color var(--duration-fast) var(--ease-out-quart);
+	}
+
+	.season-link:hover {
+		color: var(--color-info);
 	}
 
 	.race-name {
+		margin-bottom: var(--space-8);
 		font-size: var(--font-size-2xl);
 		font-weight: 800;
 		letter-spacing: -0.01em;
 	}
 
-	.race-season {
-		margin-top: var(--space-1);
-		margin-bottom: var(--space-4);
-		color: var(--color-text-muted);
-		font-weight: 600;
+	/* Sama "huomaamaton levossa, värikirkastus hoverissa" -periaate kuin `.season-link`:ssä, isommalla fontilla. */
+	.race-name-link {
+		color: inherit;
+		text-decoration: none;
+		transition: color var(--duration-fast) var(--ease-out-quart);
 	}
 
-	.track-link {
-		display: inline-block;
-		margin-bottom: var(--space-8);
-		font-size: var(--font-size-sm);
+	.race-name-link:hover {
+		color: var(--color-info);
 	}
 
 	.result-grid {

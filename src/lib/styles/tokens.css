@@ -70,7 +70,15 @@
 	--space-12: clamp(3rem, 2.4rem + 2.4vw, 4.5rem);
 	--space-16: clamp(4rem, 3.2rem + 3.2vw, 6rem);
 
-	/* ---- Fluid typography, clamp(min, preferred, max) ---- */
+	/* ---- Fluid typography, clamp(min, preferred, max) ----
+	 * Tämä clamp()-pohjainen setti on PERUSTASO/fallback kaikille
+	 * selaimille — ks. alempaa `@supports`-lohko joka korvaa SAMAT
+	 * muuttujat `progress()`-pohjaisella laskennalla selaimissa jotka
+	 * sen tukevat (käyttäjän TODO.md:hen 26.10.2026 liittämä CSS-
+	 * kokeilu). Min/max-arvot PYSYVÄT TÄSMÄLLEEN samoina molemmissa —
+	 * vain interpolaatiotapa muuttuu, lopputulos on tarkoituksella
+	 * visuaalisesti sama, ei uusi asteikko.
+	 */
 	--font-size-sm: clamp(0.8rem, 0.76rem + 0.2vw, 0.9rem);
 	--font-size-base: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
 	--font-size-lg: clamp(1.25rem, 1.1rem + 0.6vw, 1.5rem);
@@ -107,6 +115,40 @@
 
 	/* ---- Sisällön leveys ---- */
 	--content-max-width: 75rem;
+}
+
+/*
+ * Fluid typography `progress()`-funktiolla — käyttäjän TODO.md:hen
+ * 26.10.2026 liittämä CSS, sovitettu tähän tiedostoon KORVAAMAAN yllä
+ * olevat `--font-size-*`-muuttujat SAMOILLA min/max-arvoilla (ei uusi
+ * asteikko, vain uusi interpolaatiotapa) — `@supports`-suojattu, koska
+ * `progress()` ei ole vielä laajasti tuettu (ei Safari, ei vakio-Firefox
+ * tätä kirjoitettaessa) — sama "typed upgrade @supports-suojana" -periaate
+ * kuin `.fluid-grid`:n `attr(type(...))`:lla global.css:ssä. Tukemattomissa
+ * selaimissa koko lohko ohitetaan ja yllä oleva `clamp()`-versio pätee
+ * sellaisenaan, ei erillistä fallback-koodia tarvita.
+ *
+ * `--fluid-vmin`/`--fluid-vmax`: viewportin leveysalue jolla fontit
+ * skaalautuvat (400px = pienin tuettu puhelin, 1100px = noin se leveys
+ * missä `--content-max-width`:n 75rem-sisältö alkaa jäädä käyttämättä
+ * lisätilaa) — alle 400px koko juuttuu min-arvoon, yli 1100px max-arvoon,
+ * `clamp(0, ..., 1)` `--fluid-progress`:in ympärillä takaa tämän (`progress()`
+ * EI itse clamppaa, ks. spec — ekstrapoloisi rajojen ulkopuolella ilman tätä).
+ */
+@supports (width: progress(1px from 0px to 1px)) {
+	:root {
+		--fluid-vmin: 400px;
+		--fluid-vmax: 1100px;
+		--fluid-progress: clamp(0, progress(100vw from var(--fluid-vmin) to var(--fluid-vmax)), 1);
+
+		--font-size-sm: calc(0.8rem + var(--fluid-progress) * (0.9rem - 0.8rem));
+		--font-size-base: calc(1rem + var(--fluid-progress) * (1.125rem - 1rem));
+		--font-size-lg: calc(1.25rem + var(--fluid-progress) * (1.5rem - 1.25rem));
+		--font-size-xl: calc(1.75rem + var(--fluid-progress) * (2.5rem - 1.75rem));
+		--font-size-2xl: calc(2.25rem + var(--fluid-progress) * (3.25rem - 2.25rem));
+		--font-size-hero: calc(2.75rem + var(--fluid-progress) * (5rem - 2.75rem));
+		--font-size-stat: calc(2rem + var(--fluid-progress) * (3.5rem - 2rem));
+	}
 }
 
 /*

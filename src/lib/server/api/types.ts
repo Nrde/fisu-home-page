@@ -368,8 +368,20 @@ export interface RawRaceSessionResult {
 	points: string | number;
 	/** Kuljettajan oma paras kierrosaika MILLISEKUNTEINA, `null` jos ei tiedossa. */
 	bestLapMs: string | number | null;
-	/** Ero kärkeen MILLISEKUNTEINA. `null` voittajalle JA kaikille jotka ovat vähintään kierroksen jäljessä (ks. mappers.ts:n kommentti — API EI enää erota näitä kahta tapausta toisistaan, tieto "N kierrosta jäljessä" on KADONNUT tässä muotouudistuksessa). */
+	/** Ero kärkeen MILLISEKUNTEINA. `null` voittajalle JA kaikille jotka ovat vähintään kierroksen jäljessä — ks. `lapsDown` alla, joka PALAUTTI tämän kadonneen tiedon takaisin (API-tiimin lisäys 27.10.2026). */
 	gapMs: string | number | null;
+	/**
+	 * UUSI 27.10.2026 (API-tiimin lisäys, käyttäjän raportoiman `gapMs:
+	 * null`-puutteen jälkeen) — kuinka monta kierrosta kuljettaja oli
+	 * voittajaa jäljessä, `null` kun kuljettaja EI ole kierroksen jäljessä
+	 * (tällöin `gapMs` kertoo eron normaalisti). HUOM (käyttäjän oma
+	 * sanamuoto): API-tiimi kuvasi arvon rajautuvan "1 -> 1 kierros, 2 tai
+	 * enemmän -> 2 kierrosta" — EI siis välttämättä TARKKA lukumäärä kun
+	 * kuljettaja on 2+ kierrosta jäljessä, saattaa olla katto. Näytetään
+	 * silti sellaisenaan (ks. mappers.ts:n `formatLapsDownDisplay`), ei ole
+	 * parempaa tietoa saatavilla.
+	 */
+	lapsDown: number | null;
 	/** UUSI, EI vielä käytössä UI:ssa (ks. yllä oleva RawRaceSession-kommentti) — kaikissa nähdyissä esimerkeissä `null`. */
 	carId: string | number | null;
 	/** API:n valmis totuusarvo — EI enää päätelty `points === 0`:sta (vrt. vanha `RawRaceResultDriver`). */
@@ -757,15 +769,31 @@ export interface RawRaceChartResponse {
  * Arvostelut (reviews) — UUSI 2.10.2026, API-tiimin dokumentoima
  * ominaisuus (ks. API-REFERENCE.md:n luku 11 / API-FIELD-MAP.md). Kuljettajat
  * arvostelevat autoja, ratoja ja auto+rata-yhdistelmiä asteikolla 1-5 +
- * vapaaehtoinen lyhyt kommentti. HUOM (TÄRKEÄ POIKKEUS client.ts:n
- * konventiosta): nämä endpointit EIVÄT ole yhtenäisesti `{success, data}`
- * -kääreessä — osa (`/reviews/me`, `/reviews`) palauttaa kentät TASAISENA
- * JUURITASOLLA (`token`, `cars`, ... suoraan, ei `data`:n sisällä), ja
+ * vapaaehtoinen lyhyt kommentti.
+ *
+ * BREAKING CHANGE 17.10.2026 (API-tiimin ilmoitus, "kaikki endpointit
+ * yhtenäistetty, vakaa v3:een asti"): `/reviews/me`/`/reviews`
+ * palauttivat AIEMMIN onnistumiskentät TASAISENA JUURITASOLLA (`token`,
+ * `cars`, ... suoraan, ei `data`:n sisällä) — tämä oli AINOA poikkeus
+ * koko API:n `{success, data}`-konventiosta, API-tiimin OMA kuvaus: "ei
+ * tarkoituksellinen kaksimuotosuunnittelu, vain se mitä tapahtui kun
+ * write-endpointit siirrettiin v1:stä suoraan". NYT näidenkin
+ * onnistumiskentät ovat `data`:n SISÄLLÄ, SAMA kääre kuin kaikkialla
+ * muualla. HUOM: VIRHETILANTEET (401/422) EIVÄT muuttuneet — `message`/
+ * `error`/`errors` ovat EDELLEEN juuritasolla, EI `data`:n sisällä (API-
+ * tiimin dokumentin esimerkit näyttävät tämän vain onnistumistapaukselle).
+ *
  * `POST`-endpointit palauttavat VIRHETILANTEESSA (401/422) JSON-rungon
  * JOKA PITÄÄ LUKEA vaikka HTTP-status ei ole 2xx (validointivirheiden
  * kenttäkohtaiset syyt, `errors`-olio) — `apiFetch`/`apiFetchEnvelope`
  * (jotka heittävät heti `!response.ok`:lla) EIVÄT siis kelpaa näille
  * kahdelle, ks. client.ts:n `postReviewLogin`/`postReview`-kommentit.
+ * `GET /reviews/car|track|combo/...` ja `GET /reviews/track/{id}/cars`
+ * SITÄ VASTOIN OLIVAT JO `{success,data}`-muodossa aiemminkin MUUTTUJIEN
+ * NIMISSÄ — mutta PÄIVITTYIVÄT NYT (17.10.2026) oikeasti kääreen SISÄLLE
+ * (olivat aiemmin VAHINGOSSA juuritasolla, eri bugi kuin write-
+ * endpointtien kanssa) — `apiFetch` vaihdettu `apiFetchEnvelope`:iin
+ * näille client.ts:ssä, ks. sen kommentit.
  */
 
 /** `POST /reviews/me` -vastauksen `cars`-taulukon rivi. */
@@ -797,44 +825,53 @@ export interface RawMyReview {
 
 /**
  * `POST /reviews/me` — kirjautuminen SteamID64:llä + jaetulla salasanalla.
- * Onnistuessaan (200): `token`/`name`/`cars`/`tracks`/`combos`/`myReviews`
- * kaikki läsnä. Epäonnistuessaan (401, väärä tunnus TAI salasana —
- * TARKOITUKSELLA sama virhe kummassakin): vain `success: false` +
- * `message`. Kaikki onnistumiskentät siis VALINNAISIA tässä tyypissä.
+ * Onnistuessaan (200): `data.token`/`name`/`cars`/`tracks`/`combos`/
+ * `myReviews` kaikki läsnä (PÄIVITETTY 17.10.2026 — ks. yllä oleva
+ * BREAKING CHANGE -kommentti, nämä olivat ENNEN suoraan juuritasolla).
+ * Epäonnistuessaan (401, väärä tunnus TAI salasana — TARKOITUKSELLA sama
+ * virhe kummassakin): vain `success: false` + juuritason `message` (EI
+ * `data`:n sisällä, virhemuoto ei muuttunut).
  */
 export interface RawReviewLoginResponse {
 	success: boolean;
-	token?: string;
-	name?: string;
-	cars?: RawReviewLoginCar[];
-	tracks?: RawReviewLoginTrack[];
-	combos?: RawReviewLoginCombo[];
-	myReviews?: RawMyReview[];
-	/** VAIN virhetilanteessa (401). */
+	data?: {
+		token: string;
+		name: string;
+		cars: RawReviewLoginCar[];
+		tracks: RawReviewLoginTrack[];
+		combos: RawReviewLoginCombo[];
+		myReviews: RawMyReview[];
+	};
+	/** VAIN virhetilanteessa (401) — juuritasolla, ei `data`:n sisällä. */
 	message?: string;
 }
 
 /**
  * `POST /reviews` — yksittäisen arvostelun tallennus (vaatii `Authorization:
  * Bearer <token>`). Onnistuessaan (200) kaiku takaisin tallennetusta
- * arvostelusta. `422`-validointivirheessä `error`+`errors`-olio
- * (kenttäkohtaiset syyt: `target`/`score`/`note`). `401`:ssä pelkkä
- * `message` (token puuttuu/vanhentunut, token kestää 6h).
+ * arvostelusta `data`:n sisällä (PÄIVITETTY 17.10.2026 — ks. yllä oleva
+ * BREAKING CHANGE -kommentti, nämä olivat ENNEN suoraan juuritasolla).
+ * `422`-validointivirheessä `error`+`errors`-olio (kenttäkohtaiset syyt:
+ * `target`/`score`/`note`) — JUURITASOLLA, EI `data`:n sisällä, virhemuoto
+ * ei muuttunut. `401`:ssä pelkkä juuritason `message` (token puuttuu/
+ * vanhentunut, token kestää 6h).
  */
 export interface RawSubmitReviewResponse {
 	success: boolean;
-	carId?: number | null;
-	trackId?: string | null;
-	score?: number;
-	note?: string | null;
-	/** VAIN 422-validointivirheessä. */
+	data?: {
+		carId: number | null;
+		trackId: string | null;
+		score: number;
+		note: string | null;
+	};
+	/** VAIN 422-validointivirheessä — juuritasolla. */
 	error?: string;
 	errors?: {
 		target?: string;
 		score?: string;
 		note?: string;
 	};
-	/** VAIN 401:ssä. */
+	/** VAIN 401:ssä — juuritasolla. */
 	message?: string;
 }
 
@@ -859,6 +896,14 @@ export interface RawReviewSummary {
  * `/reviews/combo/{carId}/{trackId}` — yhden kohteen koko arvostelutieto,
  * julkinen, ei kirjautumista. `notes` sisältää VAIN kommentilliset
  * arvostelut (pisteen voi antaa ilman kommenttia), uusin ensin.
+ *
+ * PÄIVITETTY 17.10.2026 (API-tiimin ilmoitus): tämä OLI aiemmin vahingossa
+ * juuritasolla `success`:n vierellä (API-tiimin oma kuvaus — EI
+ * tarkoituksellinen, sama "unohtui data:n sisään" -virhe kuin write-
+ * endpointeilla, ks. types.ts:n ylemmän kommentin BREAKING CHANGE). Tämä
+ * tyyppi kuvaa EDELLEEN vain kääreen `data`-kentän SISÄLTÖÄ (ei muuttunut)
+ * — `client.ts` vaihdettiin lukemaan se `apiFetchEnvelope`:lla eikä
+ * suoralla `apiFetch`:lla, jotta kääre purkautuu oikein.
  */
 export interface RawReviewTargetResponse {
 	carId: number | null;
@@ -881,9 +926,20 @@ export interface RawReviewListResponse {
 	data: RawReviewListEntry[];
 }
 
-/** `GET /reviews/track/{trackId}/cars` — radalla arvosteltujen autojen YHDISTELMÄpisteet (eri pooli kuin auton oma yleispistemäärä). */
+/**
+ * `GET /reviews/track/{trackId}/cars` — radalla arvosteltujen autojen
+ * YHDISTELMÄpisteet (eri pooli kuin auton oma yleispistemäärä).
+ *
+ * PÄIVITETTY 17.10.2026 (API-tiimin ilmoitus): KAKSI muutosta samalla
+ * kertaa — 1) tämä OLI aiemmin vahingossa juuritasolla (sama "unohtui
+ * data:n sisään" -virhe kuin muillakin GET-arvostelu-endpointeilla, ks.
+ * `RawReviewTargetResponse`-kommentti) — `client.ts` vaihdettiin
+ * `apiFetchEnvelope`:iin. 2) listan avain nimettiin `data`:sta `cars`:iin
+ * (API-tiimin OMA uudelleennimeäminen, EI liity kääre-korjaukseen — ennen
+ * `{trackId, data: [...]}`, nyt kääreen sisällä `{trackId, cars: [...]}`).
+ */
 export interface RawTrackCarReviewsResponse {
 	trackId: string;
-	data: RawReviewListEntry[];
+	cars: RawReviewListEntry[];
 }
 
