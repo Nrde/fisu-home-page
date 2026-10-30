@@ -12,10 +12,9 @@
 
 ## 30.10.2026 01:00
 
-- Kuljettajan omalla sivulla on nyt "Rating historia" -viivagraafi: koko uran reittaus kisa kisalta, skaalattuna juuri SEN kuljettajan omaan nousu-/laskuväliin eikä kaikkien 250+ kuljettajan yhteiseen — näkyy siis selvästi vaikka oma reittaus pyörisi aina samalla sadalla pisteellä. Vie hiiri käyrän päälle niin näet tarkan pisteluvun, kisan ja kauden kohdalta.
+- Kuljettajan omalla sivulla on nyt "Rating historia" -viivagraafi: koko uran rating kehitys kisa kisalta, skaalattuna juuri SEN kuljettajan omaan nousu-/laskuväliin eikä kaikkien 250+ kuljettajan yhteiseen — näkyy siis selvästi vaikka oma reittaus pyörisi aina samalla sadalla pisteellä. Vie hiiri käyrän päälle niin näet tarkan pisteluvun, kisan ja kauden kohdalta.
 - Käyrä piirtyy nyt pehmeästi auki sivun latautuessa sen sijaan että läiskähtäisi kerralla näkyviin.
-- Rating-sivun kisajärjestys oli hetken aikaa sekaisin — aloitti tuoreimmasta kaudesta ja vanheni taaksepäin, lähestulkoon kuin Memento-elokuva. Syy löytyi lopulta API:n omasta cache-tiedostosta eikä täältä, mutta ehdimme silti kääntää koodia väärään suuntaan pari kertaa matkalla ennen kuin tajusimme sen.
-- (Konepellin alla: kuljettajan uran haku ja reittausdata yhdistetty yhdeksi rinnakkaiseksi API-kutsusarjaksi, ja kausien nimet luetaan nyt luotettavasti API:n omasta listasta sen sijaan että niitä arvattaisiin kisan nimen väliviivoista — jälkimmäinen hajosi aina kun kisan OMA nimi sattui sisältämään väliviivan.)
+- (Konepellin alla: kuljettajan uran haku ja ratingdata yhdistetty yhdeksi rinnakkaiseksi API-kutsuksi, ja kausien nimet luetaan nyt luotettavasti API:n omasta listasta sen sijaan että niitä arvattaisiin kisan nimen väliviivoista — jälkimmäinen hajosi aina kun kisan OMA nimi sattui sisältämään väliviivan.)
 
 ## 27.10.2026 14:20
 
