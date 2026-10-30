@@ -3,8 +3,8 @@
  * {driverId}/career`-kutsulta (kaudet + kisat + valmiit tilastot).
  */
 import { error } from '@sveltejs/kit';
-import { ApiError, fetchDriverCareer, fetchOrganiserSummary } from '#lib/server/api/client.ts';
-import { mapDriverCareer } from '#lib/server/api/mappers.ts';
+import { ApiError, fetchDriverCareer, fetchOrganiserSummary, fetchRaceChartData } from '#lib/server/api/client.ts';
+import { mapDriverCareer, mapDriverRatingHistory } from '#lib/server/api/mappers.ts';
 import type { PageServerLoad } from './$types';
 
 const ORGANISER = 'fisu';
@@ -27,14 +27,24 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 		// käsin tarkistettu) — haetaan se tässä RINNAN ja käytetään
 		// `mapDriverCareer`:ssa kaudet-taulukon uudelleenjärjestykseen,
 		// sen sijaan että luotettaisiin career-endpointin omaan järjestykseen.
-		const [rawCareer, organiserSummary] = await Promise.all([
+		// UUSI 29.10.2026, käyttäjän pyyntö (kuljettajan oma reittauksen
+		// kehitys viivagraafina): `race_chart_data.json` on kevyt, valmiiksi
+		// laskettu välimuistitiedosto (ks. client.ts:n `fetchRaceChartData`-
+		// kommentti) — haetaan RINNAN muun datan kanssa, ei lisää erillistä
+		// per-kuljettaja-endpointtia.
+		const [rawCareer, organiserSummary, rawRaceChart] = await Promise.all([
 			fetchDriverCareer(fetch, ORGANISER, driverId),
-			fetchOrganiserSummary(fetch, ORGANISER)
+			fetchOrganiserSummary(fetch, ORGANISER),
+			fetchRaceChartData(fetch)
 		]);
 		const chronologicalSeasonIds = organiserSummary.map((season) => Number(season.seasonId));
+		// UUSI 30.10.2026, bugikorjaus (ks. mappers.ts:n mapDriverRatingHistory-
+		// kommentti): oikeat kausinimet tekstipohjaisen arvauksen sijaan.
+		const seasonNames = organiserSummary.map((season) => season.seasonName);
 
 		const career = mapDriverCareer(rawCareer, chronologicalSeasonIds);
-		return { career };
+		const ratingHistory = mapDriverRatingHistory(rawRaceChart, driverId, seasonNames);
+		return { career, ratingHistory };
 	} catch (err) {
 		// KORJAUS 15.10.2026 (käyttäjän raportti: kaikki kuljettajasivut
 		// päätyivät 500:aan): `ApiError` on OMA luokkamme, ei SvelteKitin

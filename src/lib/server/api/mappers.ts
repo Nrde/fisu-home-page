@@ -1818,6 +1818,18 @@ export interface RaceChartData {
 	totalDrivers: number;
 }
 
+/**
+ * HUOM (29.10.2026, käyttäjän raportti "rating-sivu näyttää kisat väärässä
+ * järjestyksessä"): `raw.frames` oli väliaikaisesti VÄÄRÄSSÄ järjestyksessä
+ * API:n `/cache/race_chart_data.json`:ssa (uusin ensin, pitäisi olla vanhin
+ * ensin) — API-tiimi korjasi lähteen, EI tätä funktiota. Ei lisätä
+ * `.reverse()`:ä tähän — koko täman ongelman tutkintapolku (mukaan lukien
+ * kaksi virheellistä välijohtopäätöstä matkalla, yksi kausien NIMIIN
+ * perustuen, toinen `standings.length`:n kasvuun perustuen — molemmat
+ * osoittautuivat epäluotettaviksi merkeiksi järjestyksestä) on kirjattu
+ * CLAUDE.md:n korjauslokiin 29.10.2026 päiväyksellä, jos tämä joskus
+ * näyttää rikkoutuvan uudestaan.
+ */
 export function mapRaceChartData(raw: RawRaceChartResponse): RaceChartData {
 	return {
 		totalDrivers: raw.drivers.length,
@@ -1838,6 +1850,94 @@ export function mapRaceChartData(raw: RawRaceChartResponse): RaceChartData {
 			})
 		}))
 	};
+}
+
+/**
+ * Yhden kuljettajan reittauksen kehitys kisa kisalta — UUSI 29.10.2026,
+ * käyttäjän pyyntö ("etenevä viivagrafiikka" kuljettajan omalle sivulle").
+ * Käyttää SAMAA `/cache/race_chart_data.json`-dataa kuin `mapRaceChartData`
+ * (`/rating`-sivu), mutta poimii siitä VAIN yhden kuljettajan rivit —
+ * `raw.frames` on (API-korjauksen 29.10.2026 jälkeen) luotettavasti
+ * kronologinen vanhin ensin, joten tulos on valmiiksi oikeassa
+ * järjestyksessä eikä tätä tarvitse kääntää/lajitella uudelleen.
+ *
+ * Kuljettaja PUUTTUU framesta ennen ensimmäistä kisaansa (ks.
+ * `RawRaceChartFrame`-kommentti types.ts:ssä) — näitä frameja ei oteta
+ * mukaan ollenkaan (ei nollarivejä), koska viivagraafissa ei ole
+ * mielekästä näyttää reittausta ajalta ennen kuljettajan debyyttiä.
+ *
+ * BUGIKORJAUS (30.10.2026, käyttäjän raportti: "season 5 tai season 8 ei
+ * näy season-nimenä graafin alareunassa... oli myös muita"): `frame.title`
+ * on VALMIIKSI yhdistetty "Kauden nimi - Kisan nimi" -merkkijono eikä
+ * `RawRaceChartFrame` sisällä mitään erillistä kausitunnistetta (ks.
+ * types.ts). `RatingHistoryChart.svelte`:n ENSIMMÄINEN versio päätteli
+ * kauden VIIMEISESTÄ "-"-merkistä — tämä hajosi aina kun KISAN oma nimi
+ * sisälsi väliviivan (esim. "Kisa 5 - Spa", "Circuit de Charade -
+ * Clermont-Ferrand 1965", "Jerez - moto"), jolloin sama kausi pirstoutui
+ * useaksi ERI "kaudeksi" väärän katkaisukohdan takia — pienet pirstaleet
+ * jäivät sen jälkeen liian kapeiksi näkyäkseen.
+ *
+ * KORJATTU siirtämällä kausin tunnistus PALVELIMELLE, missä käytettävissä
+ * on OIKEA, luotettava kausinimilista (`seasonNames`, peräisin
+ * `organiserSummary`:sta — SAMA kutsu jota `+page.server.ts` jo tekee
+ * kronologista järjestystä varten `mapDriverCareer`:lle, ei siis uutta
+ * API-kutsua). `frame.title` täsmätään TARKASTI jonkin tunnetun
+ * kausinimen "<kausi> - <kisa>" -etuliitteeseen sen sijaan että
+ * arvattaisiin väliviivan sijainnista — toimii riippumatta siitä kuinka
+ * monta väliviivaa kisan OMA nimi sisältää. Pisimmän täsmäävän
+ * kausinimen valinta (`sortedSeasonNames`) varalta jos joku kausinimi
+ * olisi toisen etuliite (ei tiedossa olevaa tapausta, mutta halpa varmistus).
+ */
+export interface DriverRatingPoint {
+	/** Kauden nimi, PÄÄTELTY `seasonNames`-listasta (ei tekstin arvailulla) — ks. yllä oleva BUGIKORJAUS-kommentti. */
+	seasonLabel: string;
+	/** Pelkkä kisan/radan nimi, kauden etuliite poistettu — käytetään esim. tooltipissä ilman kauden toistoa. */
+	raceLabel: string;
+	rating: number;
+	/** Sijoitus REITTAUSLISTALLA tässä kisassa (1 = parhaiten reitattu), EI kisan oma tulos. */
+	rank: number;
+}
+
+export function mapDriverRatingHistory(
+	raw: RawRaceChartResponse,
+	driverId: number,
+	seasonNames: string[]
+): DriverRatingPoint[] {
+	const driverIndex = raw.drivers.findIndex((driver) => Number(driver.id) === driverId);
+	if (driverIndex === -1) return [];
+
+	// Pisimmät nimet ensin — jos joku kausinimi olisi toisen aito etuliite,
+	// pidemmän nimen pitää voittaa täsmäyksessä.
+	const sortedSeasonNames = [...seasonNames].sort((a, b) => b.length - a.length);
+
+	function splitTitle(title: string): { seasonLabel: string; raceLabel: string } {
+		for (const seasonName of sortedSeasonNames) {
+			if (title === seasonName) return { seasonLabel: seasonName, raceLabel: '' };
+			if (title.startsWith(`${seasonName} - `)) {
+				return { seasonLabel: seasonName, raceLabel: title.slice(seasonName.length + 3).trim() };
+			}
+		}
+		// Varatapaus jos kausinimi puuttuisi listalta (ei pitäisi tapahtua,
+		// mutta ei kaada sivua) — vanha väliviiva-arvaus parempi kuin ei mitään.
+		const lastDash = title.lastIndexOf('-');
+		return lastDash === -1
+			? { seasonLabel: title, raceLabel: '' }
+			: { seasonLabel: title.slice(0, lastDash).trim(), raceLabel: title.slice(lastDash + 1).trim() };
+	}
+
+	const points: DriverRatingPoint[] = [];
+	for (const frame of raw.frames) {
+		const standingIndex = frame.standings.findIndex(([index]) => index === driverIndex);
+		if (standingIndex === -1) continue;
+		const { seasonLabel, raceLabel } = splitTitle(frame.title);
+		points.push({
+			seasonLabel,
+			raceLabel,
+			rating: frame.standings[standingIndex][1],
+			rank: standingIndex + 1
+		});
+	}
+	return points;
 }
 
 /**

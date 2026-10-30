@@ -8,6 +8,7 @@
 	 * takaisin muuhun sivustoon.
 	 */
 	import DriverRaceRow from '#lib/components/ui/DriverRaceRow.svelte';
+	import RatingHistoryChart from '#lib/components/ui/RatingHistoryChart.svelte';
 	import StatTile from '#lib/components/ui/StatTile.svelte';
 	import type { PageData } from './$types';
 
@@ -54,6 +55,11 @@
 		/>
 		<StatTile value={stats.dnfs} label={statLabel(stats.dnfs, 'Keskeytys', 'Keskeytystä')} align="center" />
 	</div>
+
+	<section class="rating-history">
+		<h2 class="rating-history__title">Rating historia</h2>
+		<RatingHistoryChart points={data.ratingHistory} />
+	</section>
 
 	<div class="seasons">
 		{#each data.career.seasons as season (season.seasonId)}
@@ -102,6 +108,16 @@
 		margin-bottom: var(--space-8);
 		color: var(--color-text-muted);
 		font-weight: 600;
+	}
+
+	.rating-history {
+		margin-top: var(--space-8);
+	}
+
+	.rating-history__title {
+		font-size: var(--font-size-lg);
+		font-weight: 800;
+		margin-bottom: var(--space-4);
 	}
 
 	.seasons {

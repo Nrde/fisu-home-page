@@ -746,12 +746,25 @@ export interface RawRaceChartDriver {
 export type RawRaceChartStanding = [driverIndex: number, rating: number];
 
 /**
- * Yksi kisa aikajärjestyksessä — `frames[i]` ON kisa numero `i + 1`, ei
- * erillistä kierrosnumerokenttää. `standings` on VALMIIKSI järjestetty
- * sijoituksen mukaan (ks. `RawRaceChartStanding`-kommentti). Kuljettaja
- * esiintyy framessa vasta ensimmäisen kisansa jälkeen — framet EIVÄT siis
- * ole yhtä pitkiä (käyttäjän esimerkki: 4 kuljettajaa framessa 1, 5
- * framessa 2 kun viides ajoi ensimmäisen kisansa).
+ * Yksi kisa. `standings` on VALMIIKSI järjestetty sijoituksen mukaan
+ * (ks. `RawRaceChartStanding`-kommentti). Kuljettaja esiintyy framessa
+ * vasta ensimmäisen kisansa jälkeen — framet EIVÄT siis ole yhtä pitkiä
+ * (käyttäjän esimerkki: 4 kuljettajaa framessa 1, 5 framessa 2 kun
+ * viides ajoi ensimmäisen kisansa).
+ *
+ * HUOM (29.10.2026, käyttäjän raportin takia tarkistettu kahdesti): tämä
+ * ON jo oikeassa, vanhin-ensin-kronologisessa järjestyksessä — vaikka
+ * kisojen OTSIKOT (esim. "S19 ..." vs. "Season #1 ...") antavat
+ * ensivaikutelman päinvastaisesta ("uusin ensin"), kausien nimet/numerot
+ * EIVÄT ole luotettava kronologian merkki 9.–10.10.2026 id-migraation
+ * jälkeen (ks. CLAUDE.md, sama opetus kuin `mapSeasonList`:n kohdalla).
+ * Todiste: `standings.length` kasvaa TÄYSIN monotonisesti `frames[0]`:sta
+ * `frames[last]`:iin asti kaikissa 164 framessa (ei yhtään laskevaa
+ * askelta) — kumulatiivinen reittauksen piirissä olevien kuljettajien
+ * määrä voi historiassa vain kasvaa, joten tämä on vedenpitävä todiste
+ * suunnasta, toisin kuin otsikkoteksti. `mapRaceChartData` (mappers.ts)
+ * EI siis käännä järjestystä — ÄLÄ lisää `.reverse()`:ä uudestaan tämän
+ * perusteella että joku kisan otsikko "näyttää väärältä".
  */
 export interface RawRaceChartFrame {
 	title: string;
